@@ -1,0 +1,48 @@
+#ifndef _RTC_FUNCTIONS
+#define _RTC_FUNCTIONS
+#include "stdint.h"
+
+/* Number of days in 4 years: (365 * 4) + 1 */
+#define DAYSIN4YEARS 1461
+
+struct s_tm {
+
+  uint8_t tm_sec; //seconds after the minute: 0 - 59
+  uint8_t tm_min; //minutes after the hour: 0 - 59
+  uint8_t tm_hour;//hours since midnight: 0 - 23
+  uint8_t tm_mday;//day of the month: 1 - 31
+  uint8_t tm_mon;//months since January: 0 - 11
+  uint8_t tm_year;//years since 1900
+  uint8_t tm_wday;//days since Sunday: 0 - 6
+  uint16_t tm_yday;//days since Jan 1st: 0 - 365
+  int8_t tm_isdst;//daylight savings flag: -1 unknown, 0 not in DST, 1 in DST
+};
+
+typedef struct s_tm RTCTM; 
+
+typedef enum
+{
+  NO_INIT = 0,
+  RTC_INIT_FAIL,
+  NO_TIME_SET,
+  TIME_NO_SYNC, //давно не было синхронизации
+  RTC_OK
+} RTC_State_Type;
+
+void init_sntp_module(void);
+void rtc_update_handler(void);
+void RTC_Init(void);
+void Init_RTC_Clock(void);
+
+//SPL functions
+void RTC_SetCounter(uint32_t CounterValue);
+uint32_t RTC_GetCounter(void);
+
+void Rtc_RawLocalTime( RTCTM *aExpand, uint32_t time );
+void print_current_time(char* buffer);
+
+void update_reset_time(void);
+void time_from_reset_to_buffer(char* buffer);
+
+
+#endif

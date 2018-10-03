@@ -1,0 +1,86 @@
+#include "generate_json.h"
+#include "rtc_functions.h"
+#include "stdint.h"
+#include "string.h"
+#include "stdio.h"
+#include "stm32f1xx_hal.h"
+
+char json_buffer1[1024];
+
+uint16_t json_data1_size = 0;
+extern uint8_t dht11_temperature;
+extern uint8_t dht11_humidity;
+
+extern uint16_t last_power_value;
+extern uint16_t power_delta_time;
+extern uint16_t two_min_power;
+
+uint16_t generate_json_data1(void)
+{
+  char str[30];
+  memset(json_buffer1, 0, 1024);//clear json
+  json_data1_size = 0;
+  
+  strcat((char*)json_buffer1, "{\r\n");//start
+  
+  print_current_time((char*)str);
+  add_str_value_to_json(json_buffer1, "dev_time", str, 0);
+
+  
+  sprintf(str, "\"cur_power\": %d,\r\n", last_power_value);
+  strcat((char*)json_buffer1,str);
+  
+  sprintf(str, "\"two_min_power\": %d,\r\n", two_min_power);
+  strcat((char*)json_buffer1,str);
+  
+  sprintf(str, "\"day_power\": %d,\r\n", (uint32_t)123400);
+  strcat((char*)json_buffer1,str);
+  
+  sprintf(str, "\"month_power\": %d,\r\n", (uint32_t)1234567);
+  strcat((char*)json_buffer1,str);
+  
+  sprintf(str, "\"last_rx_time\": %d,\r\n", power_delta_time);
+  strcat((char*)json_buffer1,str);
+  
+  //%%%%
+  
+  time_from_reset_to_buffer((char*)str);
+  add_str_value_to_json(json_buffer1, "time_from_reset", str, 0);
+  
+  add_str_value_to_json(json_buffer1, "total_time", "10d 2h", 0);
+  
+  sprintf(str, "\"temperature\": %d,\r\n", (uint8_t)dht11_temperature);
+  strcat((char*)json_buffer1,str);
+  
+  sprintf(str, "\"humidity\": %d\r\n", (uint8_t)dht11_humidity);
+  strcat((char*)json_buffer1,str);
+  
+  strcat((char*)json_buffer1, "}");//end
+  
+  json_data1_size = strlen((char*)json_buffer1);
+  return json_data1_size;
+}
+
+void add_str_value_to_json(char* json_buf, char* value_name, char* value, uint8_t is_end)
+{
+  char loc_str[64];
+  memset(loc_str, 0, sizeof(loc_str));//clear json
+  
+  strcat((char*)loc_str, "\"");//begin value_name
+  strcat((char*)loc_str, value_name);//value_name body
+  strcat((char*)loc_str, "\": \"");//end value_name + begin value (---": "--)
+  strcat((char*)loc_str, value);//value body
+  strcat((char*)loc_str, "\"");//end value
+  
+  if (is_end != 1)
+  {
+    strcat((char*)loc_str, ",\r\n");//end value
+  }
+  else
+  {
+    strcat((char*)loc_str, "\r\n");//end value
+  }
+  
+  strcat(json_buf, loc_str);//copy to main buffer
+}
+
