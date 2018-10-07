@@ -22,17 +22,17 @@ typedef struct s_tm RTCTM;
 
 typedef enum
 {
-  NO_INIT = 0,
-  RTC_INIT_FAIL,
-  NO_TIME_SET,
-  TIME_NO_SYNC, //давно не было синхронизации
+  NO_INIT = 0,   //Перед инициализацией
+  RTC_INIT_FAIL, //RTC неправильно инициализирован
+  NO_TIME_SET,   //Инициализация прошла нормально, но время пока неправильное
+  TIME_NO_SYNC,  //давно не было синхронизации
   RTC_OK
 } RTC_State_Type;
 
 void init_sntp_module(void);
 void rtc_update_handler(void);
-void RTC_Init(void);
-void Init_RTC_Clock(void);
+void rtc_init(void);
+void rtc_init_hardware_clk(void);
 
 //SPL functions
 void RTC_SetCounter(uint32_t CounterValue);
@@ -42,7 +42,7 @@ void Rtc_RawLocalTime( RTCTM *aExpand, uint32_t time );
 void print_current_time(char* buffer);
 
 void update_reset_time(void);
-void time_from_reset_to_buffer(char* buffer);
+void rtc_time_from_reset_to_buffer(char* buffer);
 
 
 #endif

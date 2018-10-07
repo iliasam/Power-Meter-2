@@ -12,6 +12,8 @@ uint16_t last_power_value = 0;//last received rx power data
 uint16_t power_delta_time = 0;//time from last data rx
 uint16_t two_min_power = 0;//2 minute average power
 
+float total_energy = 1234.5;//Общее количество энергии, квт/час
+
 uint16_t two_min_buffer[TWO_MINUTES_POINTS_CNT]; //2 minutes power readings
 
 

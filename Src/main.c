@@ -112,7 +112,7 @@ int main(void)
   w5500_reset();
   DWT_Init();
   __HAL_SPI_ENABLE(&hspi1);
-  RTC_Init();
+  rtc_init();
   config_w5500_stack();
   init2_w5500();
   init_sntp_module();

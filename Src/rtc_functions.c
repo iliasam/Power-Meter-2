@@ -1,3 +1,5 @@
+//RTC хранит время в формате UTC
+
 #include "rtc_functions.h"
 #include "network_low.h"
 #include "stdint.h"
@@ -9,34 +11,39 @@
 
 #define RTC_SYNC_PERIOD                 (uint32_t)(1*60) // Период синхронизации RTC, сек
 
-#define RTC_STATUS_REG                  RTC_BKP_DR1  /* Status Register */
+#define RTC_STATUS_REG                  RTC_BKP_DR1  // Регистр для хранения статуса RTC
 #define RTC_STATUS_INIT_DONE            0x1234       /* RTC initialised value*/
 
 #define SNTP_SOCKET 			4 //SOCKET_CODE
 #define SNTP_DATA_BUF_SIZE   		256
 
-uint8_t ntp_server[4] = {211, 233, 84, 186};	// kr.pool.ntp.org
-datetime sntp_time;
-uint8_t sntp_data_buf[SNTP_DATA_BUF_SIZE];
+static const uint8_t rtc_days_in_month_info[12] = {31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+
+uint8_t sntp_server_ip[4] = {211, 233, 84, 186}; // kr.pool.ntp.org
+datetime sntp_time;//Время, полученое от SNTP
+
+uint8_t sntp_data_buf[SNTP_DATA_BUF_SIZE];//Буфер для хранения промежуточных данных SNTP
+
+uint32_t reset_time = 0;//time of reset ????
+
+RTC_State_Type rtc_status = NO_INIT;
+uint32_t last_sync_time = 0;// Время последней синхронизации - UTC
+
+
 
 extern TypeEthState ethernet_state;
 
-uint32_t reset_time = 0;//time of reset
 
-//RTC
-RTC_State_Type rtc_status = NO_INIT;
-uint32_t last_sync_time = 0;//время последней синхронизации
-
-static const uint8_t monthInfo[12] ={31,29,31,30,31,30,31,31,30,31,30,31};
 
 //******************************************************************************
 
 void init_sntp_module(void)
 {
   //socket, ip adsress, time zone, buffer
-  SNTP_init(SNTP_SOCKET, ntp_server, 29, sntp_data_buf);
+  SNTP_init(SNTP_SOCKET, sntp_server_ip, 29, sntp_data_buf);
 }
 
+// Периодически вызывается из задачи StartRTCUpdateHandler()
 void rtc_update_handler(void)
 {
   uint32_t cur_rtc_time;
@@ -46,17 +53,21 @@ void rtc_update_handler(void)
   }
   else
   {
-    cur_rtc_time = RTC_GetCounter();//получаем время от RTC и сравниваваем с временнем последнего обновления
+    //Получаем время от RTC и сравниваваем с временнем последнего обновления
+    cur_rtc_time = RTC_GetCounter();
     if (((cur_rtc_time - last_sync_time) > RTC_SYNC_PERIOD) && (rtc_status != RTC_INIT_FAIL))
     {
-      //настало время синхронизации и RTC работает нормально
+      //Настало время синхронизации и RTC работает нормально
       rtc_status = TIME_NO_SYNC;
-      if (SNTP_run(&sntp_time) == 1)
+      
+      // Пытаемся получить время от SNTP
+      if (SNTP_run(&sntp_time))
       {
         update_reset_time();
         RTC_SetCounter((uint32_t)sntp_time.raw_value);//в RTC записывается время UTC
         last_sync_time = (uint32_t)sntp_time.raw_value;//refresh sync time
         rtc_status = RTC_OK;
+        
 #ifdef DEBUG
         printf("SNTP: %d-%d-%d, %d:%d:%d\r\n", sntp_time.yy, sntp_time.mo, sntp_time.dd, sntp_time.hh, sntp_time.mm, sntp_time.ss);
 #endif
@@ -73,44 +84,43 @@ void rtc_update_handler(void)
   }
 }
 
-
-void RTC_Init(void)
+// Инициализация RTC
+void rtc_init(void)
 {
   uint32_t status;
-  RTC_HandleTypeDef RtcHandle;
+  RTC_HandleTypeDef rtc_handle;
 
-  Init_RTC_Clock();
-  if (rtc_status == RTC_INIT_FAIL) return;
+  rtc_init_hardware_clk();
+  if (rtc_status == RTC_INIT_FAIL) 
+    return;
   
-  RtcHandle.Instance = RTC;
-  RtcHandle.Init.AsynchPrediv = RTC_AUTO_1_SECOND;
-  RtcHandle.Init.OutPut = RTC_OUTPUTSOURCE_NONE;
+  rtc_handle.Instance = RTC;
+  rtc_handle.Init.AsynchPrediv = RTC_AUTO_1_SECOND;
+  rtc_handle.Init.OutPut = RTC_OUTPUTSOURCE_NONE;
   
-  if (HAL_RTC_Init(&RtcHandle) != HAL_OK)
-  {
+  if (HAL_RTC_Init(&rtc_handle) != HAL_OK)
     rtc_status = RTC_INIT_FAIL;
-  }
   else
-  {
     rtc_status = NO_TIME_SET;
-  }
 
-  // Get RTC status
-  status = HAL_RTCEx_BKUPRead(&RtcHandle, RTC_STATUS_REG);
+  // Получить статус RTC - читаем первый регистр BKUP_RAM
+  status = HAL_RTCEx_BKUPRead(&rtc_handle, RTC_STATUS_REG);
   
-  if (status == RTC_STATUS_INIT_DONE)//RTC уже что-то содержит
+  RTC_SetCounter(1000);//reset RTC
+  
+  if (status == RTC_STATUS_INIT_DONE)
   {
-    RTC_SetCounter(1000);//reset RTC
+    //BKUP содержит полезные данные
   }
   else 
   {
-    RTC_SetCounter(1000);//reset RTC
-    HAL_RTCEx_BKUPWrite(&RtcHandle, RTC_STATUS_REG, RTC_STATUS_INIT_DONE);//первое включение
+    //Записываем магическое число в BKUP
+    HAL_RTCEx_BKUPWrite(&rtc_handle, RTC_STATUS_REG, RTC_STATUS_INIT_DONE);//первое включение
   }
 }
 
-//настройка системы тактирования RTC
-void Init_RTC_Clock(void)
+//Настройка системы тактирования RTC
+void rtc_init_hardware_clk(void)
 {
   RCC_OscInitTypeDef        RCC_OscInitStruct;
   RCC_PeriphCLKInitTypeDef  PeriphClkInitStruct;
@@ -226,9 +236,9 @@ void Rtc_RawLocalTime( RTCTM *aExpand, uint32_t time )
     month = 0;
     
     /* Remove days in month till left with less or equal days than in current month */
-    while(time >= monthInfo[month])
+    while(time >= rtc_days_in_month_info[month])
     {
-        time -= monthInfo[month];
+        time -= rtc_days_in_month_info[month];
         month++;
     }
     
@@ -250,7 +260,7 @@ void print_current_time(char* buffer)
 
 void update_reset_time(void)
 {
-  uint32_t current_time = RTC_GetCounter();//no timezone
+  uint32_t current_time = RTC_GetCounter();//UTC time
   uint32_t reset_delta_time = 0;
   static uint32_t startup_reset_time = 0;
   
@@ -269,9 +279,10 @@ void update_reset_time(void)
   }
 }
 
-void time_from_reset_to_buffer(char* buffer)
+//Выводит в буфер buffer число дней и часов с последний перезагрузки
+void rtc_time_from_reset_to_buffer(char* buffer)
 {
-  uint32_t current_time = RTC_GetCounter();//no timezone
+  uint32_t current_time = RTC_GetCounter();//UTC time
   uint32_t reset_delta_time = 0;
   
   reset_delta_time = current_time - reset_time;
@@ -282,8 +293,8 @@ void time_from_reset_to_buffer(char* buffer)
   }
   reset_delta_time = reset_delta_time / 3600;//to hours
   
-  uint16_t days_from_reset = (uint16_t)(reset_delta_time/24);
-  uint8_t hours_from_rest = (uint8_t)(reset_delta_time%24);
+  uint16_t days_from_reset = (uint16_t)(reset_delta_time / 24);
+  uint8_t hours_from_rest = (uint8_t)(reset_delta_time % 24);
   
   sprintf(buffer,"%d days %d hr",  days_from_reset, hours_from_rest);
 }

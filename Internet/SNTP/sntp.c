@@ -216,14 +216,14 @@ void get_seconds_from_ntp_server(uint8_t *buf, uint16_t idx)
 	calcdatetime(seconds);
 }
 
-void SNTP_init(uint8_t s, uint8_t *ntp_server, uint8_t tz, uint8_t *buf)
+void SNTP_init(uint8_t s, uint8_t *sntp_server_ip, uint8_t tz, uint8_t *buf)
 {
 	NTP_SOCKET = s;
 
-	NTPformat.dstaddr[0] = ntp_server[0];
-	NTPformat.dstaddr[1] = ntp_server[1];
-	NTPformat.dstaddr[2] = ntp_server[2];
-	NTPformat.dstaddr[3] = ntp_server[3];
+	NTPformat.dstaddr[0] = sntp_server_ip[0];
+	NTPformat.dstaddr[1] = sntp_server_ip[1];
+	NTPformat.dstaddr[2] = sntp_server_ip[2];
+	NTPformat.dstaddr[3] = sntp_server_ip[3];
 
 	time_zone = tz;
 

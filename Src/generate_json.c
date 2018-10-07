@@ -13,7 +13,7 @@ extern uint8_t dht11_humidity;
 
 extern uint16_t last_power_value;
 extern uint16_t power_delta_time;
-extern uint16_t two_min_power;
+extern float total_energy;
 
 uint16_t generate_json_data1(void)
 {
@@ -30,13 +30,13 @@ uint16_t generate_json_data1(void)
   sprintf(str, "\"cur_power\": %d,\r\n", last_power_value);
   strcat((char*)json_buffer1,str);
   
-  sprintf(str, "\"two_min_power\": %d,\r\n", two_min_power);
+  sprintf(str, "\"total_energy\": %f,\r\n", total_energy);
   strcat((char*)json_buffer1,str);
   
-  sprintf(str, "\"day_power\": %d,\r\n", (uint32_t)123400);
+  sprintf(str, "\"day_energy\": %d,\r\n", (uint32_t)1234);
   strcat((char*)json_buffer1,str);
   
-  sprintf(str, "\"month_power\": %d,\r\n", (uint32_t)1234567);
+  sprintf(str, "\"month_energy\": %d,\r\n", (uint32_t)3210);
   strcat((char*)json_buffer1,str);
   
   sprintf(str, "\"last_rx_time\": %d,\r\n", power_delta_time);
@@ -44,7 +44,7 @@ uint16_t generate_json_data1(void)
   
   //%%%%
   
-  time_from_reset_to_buffer((char*)str);
+  rtc_time_from_reset_to_buffer((char*)str);
   add_str_value_to_json(json_buffer1, "time_from_reset", str, 0);
   
   add_str_value_to_json(json_buffer1, "total_time", "10d 2h", 0);

@@ -6,9 +6,6 @@
 #include <string.h>
 
 #include "index.h"
-//#include "index_old.h"
-//#include "index_small.h"
-//#include "zepto.h"
 #include "zepto_gzip.h"
 
 const char http_404_full[] =
@@ -29,9 +26,9 @@ const char http_server[] = "Server: STM32+W5500\r\n";
 const char http_connection_close[] = "Connection: close\r\n";
 const char http_content_type[] = "Content-Type: ";
 const char http_content_length[] = "Content-Length: ";
-const char  http_content_encoding[] = "Content-Encoding: gzip\r\n";
-const char  http_linebreak[] = "\r\n";
-const char  http_header_end[] = "\r\n\r\n";
+const char http_content_encoding[] = "Content-Encoding: gzip\r\n";
+const char http_linebreak[] = "\r\n";
+const char http_header_end[] = "\r\n\r\n";
 
 
 //const char http_not_found[] = "<h1>404 - Not Found</h1>";
@@ -110,10 +107,9 @@ int32_t loopback_web_server(uint8_t sock_num, uint8_t* buf, uint16_t port)
    char *url,*p,str[10];
    const char *mime;
    
-   uint16_t header_sz=0;
+   uint16_t header_sz = 0;
    
    uint32_t file_size = 0;
-   //static uint32_t file_offset = 0;
    uint16_t bytes_read = 0;
   
   switch(getSn_SR(sock_num))
@@ -129,7 +125,7 @@ int32_t loopback_web_server(uint8_t sock_num, uint8_t* buf, uint16_t port)
       if((size = getSn_RX_RSR(sock_num)) > 0)//Received Size Register - there are some bytes received
       {
         if(size > WEB_DATA_BUF_SIZE) size = WEB_DATA_BUF_SIZE;
-        ret = recv(sock_num,buf,size);
+        ret = recv(sock_num, buf, size);
         HTTP_reset(sock_num);
         if(ret <= 0)
           return ret;
@@ -160,15 +156,15 @@ int32_t loopback_web_server(uint8_t sock_num, uint8_t* buf, uint16_t port)
             memcpy(&http_url[sock_num][0], url, 25);
             
             mime=httpd_get_mime_type(url);
-            strcpy((char*)buf,http_200);
+            strcpy((char*)buf, http_200);
             
             //from here possibly not mandatory?
             strcat((char*)buf, http_server);
-            strcat((char*)buf,http_connection_close);
+            strcat((char*)buf, http_connection_close);
             
             strcat((char*)buf, http_content_length);
             sprintf(str, "%d\r\n", file_size);
-            strcat((char*)buf,str);
+            strcat((char*)buf, str);
             //strcat((char*)buf, http_linebreak);//till here possibly not mandatory?
             
             if (memcmp(mime, "text/javascript", 15) == 0)
@@ -176,22 +172,19 @@ int32_t loopback_web_server(uint8_t sock_num, uint8_t* buf, uint16_t port)
               strcat((char*)buf, http_content_encoding);//use encoding
             }
             strcat((char*)buf, http_content_type);
-            strcat((char*)buf,mime);
+            strcat((char*)buf, mime);
             strcat((char*)buf, http_header_end);
-            
 
-            
             header_sz = strlen((char*)buf);
             
             http_state[sock_num] = HTTP_SENDING;
-            
           }
           else
           {
             //404 - should be less 2048
-            strcpy((char*)buf,http_404_full);
+            strcpy((char*)buf, http_404_full);
             size=strlen((char*)buf);
-            ret=send(sock_num,buf,size);
+            ret=send(sock_num, buf, size);
             if(ret < 0)
             {
               close(sock_num);
@@ -213,12 +206,12 @@ int32_t loopback_web_server(uint8_t sock_num, uint8_t* buf, uint16_t port)
         {
           if (header_sz > 0)
           {
-            ret = send(sock_num,buf,header_sz);//отправка заголовка
+            ret = send(sock_num, buf, header_sz);//отправка заголовка
           }
           else
           {
             bytes_read = f_read((char*)&http_url[sock_num][0], &buf[header_sz], WEB_DATA_BUF_SIZE, sentsize[sock_num]);
-            ret = send(sock_num,buf,bytes_read);
+            ret = send(sock_num, buf, bytes_read);
           }
           
           if(ret < 0)
@@ -227,15 +220,14 @@ int32_t loopback_web_server(uint8_t sock_num, uint8_t* buf, uint16_t port)
             return ret;
           }
           
-          if (header_sz == 0) sentsize[sock_num] += ret; // Don't care SOCKERR_BUSY, because it is zero.
-          
+          if (header_sz == 0) 
+            sentsize[sock_num] += ret; // Don't care SOCKERR_BUSY, because it is zero.
         }
         
         if(sentsize[sock_num] >= file_size)
         {
           //ending
           HTTP_reset(sock_num);
-          //f_close(&fs[sn]);
           disconnect(sock_num);
         }
       }//end of HTTP_SENDING
