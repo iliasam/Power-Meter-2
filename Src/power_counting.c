@@ -103,7 +103,7 @@ void power_update_midnight_counters(void)
 {
   RTCTM curr_time = rtc_get_current_time();
   
-  if ((curr_time.tm_min == 0) && (power_previous_time.tm_min != 0))
+  if ((curr_time.tm_hour == 0) && (power_previous_time.tm_hour != 0))
   {
     // Полночь
     // Получаем текущее значение главного счетчика
@@ -111,7 +111,7 @@ void power_update_midnight_counters(void)
     // Обновляем значение регистра-защелки
     rtc_write_backup_value(POWER_RTC_DAY_STAMP_REG, current_total_count);
     
-    // Наступил новый день
+    // Наступил новый месяц
     if ((curr_time.tm_mday == 1) && (power_previous_time.tm_mday != 1))
     {
       // Обновляем значение регистра-защелки

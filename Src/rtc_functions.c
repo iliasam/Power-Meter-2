@@ -58,8 +58,11 @@ void rtc_update_handler(void)
     cur_rtc_time = RTC_GetCounter();
     if (((cur_rtc_time - last_sync_time) > RTC_SYNC_PERIOD) && (rtc_status != RTC_INIT_FAIL))
     {
-      //Настало время синхронизации и RTC работает нормально
-      rtc_status = TIME_NO_SYNC;
+      if (rtc_status != NO_TIME_SET)
+      {
+        //Настало время синхронизации и RTC работает нормально
+        rtc_status = TIME_NO_SYNC;
+      }
       
       // Пытаемся получить время от SNTP
       if (SNTP_run(&sntp_time))

@@ -228,30 +228,6 @@ void MX_SPI1_Init(void)
   HAL_SPI_Init(&hspi1);
 }
 
-
-///* USART1 init function */
-//static void MX_USART1_UART_Init(void)
-//{
-//
-//  huart1.Instance = USART1;
-//  huart1.Init.BaudRate = 1200;
-//  huart1.Init.WordLength = UART_WORDLENGTH_8B;
-//  huart1.Init.StopBits = UART_STOPBITS_1;
-//  huart1.Init.Parity = UART_PARITY_NONE;
-//  huart1.Init.Mode = UART_MODE_RX;
-//  huart1.Init.HwFlowCtl = UART_HWCONTROL_NONE;
-//  huart1.Init.OverSampling = UART_OVERSAMPLING_16;
-//  
-//  if (HAL_UART_Init(&huart1) != HAL_OK)
-//  {
-//    //Error_Handler();
-//  }
-//  else
-//  {
-//      __HAL_UART_ENABLE_IT(&huart1, UART_IT_RXNE);
-//  }
-//}
-
 /** Configure pins as 
         * Analog 
         * Input 
@@ -305,7 +281,7 @@ void StartLedBlinkTask(void const * argument)
   /* Infinite loop */
   for(;;)
   {
-    //HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_3);
+    HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_3);
     osDelay(100);
   }
   /* USER CODE END 5 */ 

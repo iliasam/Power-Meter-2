@@ -92,7 +92,7 @@ uint8_t read_DHT11(uint8_t *buf)
   DWT_Delay(30);//us
   
   time_cnt = 0;
-  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_3, GPIO_PIN_SET);
+  //HAL_GPIO_WritePin(GPIOB, GPIO_PIN_3, GPIO_PIN_SET);
   //2 presence pulses
   time_cnt = dht11_wait_for_rising_edge();
   if ((time_cnt > 95) || (time_cnt < 10)) return DHT11_NO_CONN;
@@ -106,7 +106,7 @@ uint8_t read_DHT11(uint8_t *buf)
   for(i=0;i<40;i++)
   {
     rx_bit = dht11_wait_for_bit();
-    HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_3);
+    //HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_3);
     
     position = i/8;
     buf[position] = buf[position] << 1;

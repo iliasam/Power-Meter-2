@@ -13,7 +13,15 @@ extern uint8_t dht11_humidity;
 
 extern uint16_t power_last_value;
 extern uint16_t power_delta_time;
+
 extern float power_total_energy;
+
+//Количество энергии за день, квт/час
+extern float power_day_energy;
+
+//Количество энергии за месяц, квт/час
+extern float power_month_energy;
+
 
 uint16_t generate_json_data1(void)
 {
@@ -29,16 +37,16 @@ uint16_t generate_json_data1(void)
   sprintf(str, "\"cur_power\": %d,\r\n", power_last_value);
   strcat((char*)json_buffer1,str);
   
-  sprintf(str, "\"power_total_energy\": %f,\r\n", power_total_energy);
+  sprintf(str, "\"total_energy\": %.3f,\r\n", power_total_energy);
   strcat((char*)json_buffer1,str);
   
-  sprintf(str, "\"day_energy\": %d,\r\n", (uint32_t)1234);
+  sprintf(str, "\"day_energy\": %.3f,\r\n", power_day_energy);
   strcat((char*)json_buffer1,str);
   
-  sprintf(str, "\"month_energy\": %d,\r\n", (uint32_t)3210);
+  sprintf(str, "\"month_energy\": %.3f,\r\n", power_month_energy);
   strcat((char*)json_buffer1,str);
   
-  sprintf(str, "\"last_rx_time\": %d sec,\r\n", power_delta_time);
+  sprintf(str, "\"last_rx_time\": %d,\r\n", power_delta_time);
   strcat((char*)json_buffer1,str);
   
   //%%%%
