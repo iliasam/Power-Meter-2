@@ -17,6 +17,9 @@
 #define SNTP_SOCKET 			4 //SOCKET_CODE
 #define SNTP_DATA_BUF_SIZE   		256
 
+//Hours
+#define RTC_TIMEZONE                    (3)
+
 static const uint8_t rtc_days_in_month_info[12] = {31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
 
 uint8_t sntp_server_ip[4] = {211, 233, 84, 186}; // kr.pool.ntp.org
@@ -28,8 +31,6 @@ uint32_t reset_time = 0;//time of reset ????
 
 RTC_State_Type rtc_status = NO_INIT;
 uint32_t last_sync_time = 0;// Время последней синхронизации - UTC
-
-
 
 extern TypeEthState ethernet_state;
 
@@ -150,6 +151,44 @@ void rtc_init_hardware_clk(void)
   __HAL_RCC_RTC_ENABLE();// Enable RTC Clock
 }
 
+// Read uint32_t value from backup data
+uint32_t rtc_read_backup_value(uint32_t register_number)
+{
+  if (register_number >= RTC_BKP_NUMBER)
+    return 0; //error
+  
+  if (register_number == RTC_BKP_DR1)
+    return 0; //error
+  
+  RTC_HandleTypeDef rtc_handle;
+  rtc_handle.Instance = RTC;
+  return HAL_RTCEx_BKUPRead(&rtc_handle, register_number);
+}
+
+//Write uint32_t "value" to "register_number"
+void rtc_write_backup_value(uint32_t register_number, uint32_t value)
+{
+  if (register_number >= RTC_BKP_NUMBER)
+    return; //error
+  
+  if (register_number == RTC_BKP_DR1)
+    return; //error
+  
+  RTC_HandleTypeDef rtc_handle;
+  rtc_handle.Instance = RTC;
+  
+  HAL_RTCEx_BKUPWrite(&rtc_handle, register_number, value);
+}
+
+// RTC time is probaly good
+uint8_t rtc_is_time_good(void)
+{
+  if ((rtc_status == TIME_NO_SYNC) || (rtc_status == RTC_OK))
+    return 1;
+  else
+    return 0;
+}
+
 //##############################################################################
 //SPL functions 
 
@@ -248,13 +287,29 @@ void Rtc_RawLocalTime( RTCTM *aExpand, uint32_t time )
     aExpand->tm_mday = time + 1;
 }
 
+
+
 //print current time to buffer
 void print_current_time(char* buffer)
 {
-  uint32_t current_time = RTC_GetCounter() + 3600*3;
+  uint32_t current_time = RTC_GetCounter() + 3600 * RTC_TIMEZONE;
   RTCTM cur_time;//текущее время - структура
   Rtc_RawLocalTime(&cur_time,current_time);
-  sprintf(buffer,"%02u/%02u/%04u %02u:%02u:%02u",  cur_time.tm_mday,(cur_time.tm_mon+1), (cur_time.tm_year+1830),cur_time.tm_hour,cur_time.tm_min, cur_time.tm_sec);
+  sprintf(buffer,"%02u/%02u/%04u %02u:%02u:%02u",
+          cur_time.tm_mday,
+          (cur_time.tm_mon + 1), 
+          (cur_time.tm_year + 1830),
+          cur_time.tm_hour,
+          cur_time.tm_min, 
+          cur_time.tm_sec);
+}
+
+RTCTM rtc_get_current_time(void)
+{
+  uint32_t current_time = RTC_GetCounter() + 3600 * RTC_TIMEZONE;
+  RTCTM cur_time;//текущее время - структура
+  Rtc_RawLocalTime(&cur_time,current_time);
+  return cur_time;
 }
 
 

@@ -11,7 +11,7 @@ int32_t loopback_web_server(uint8_t sock_num, uint8_t* buf, uint16_t port);
 
 
 const char *httpd_get_mime_type(char *url);
-void HTTP_reset(uint8_t sock_num);
+void web_http_reset(uint8_t sock_num);
 
 uint32_t url_exists(char* file_name);
 

@@ -48,6 +48,18 @@ extern UART_HandleTypeDef huart1;
 /******************************************************************************/
 /*            Cortex-M3 Processor Interruption and Exception Handlers         */ 
 /******************************************************************************/
+/**
+  * @brief  This function handles Hard Fault exception.
+  * @param  None
+  * @retval None
+  */
+void HardFault_Handler(void)
+{
+  /* Go to infinite loop when Hard Fault exception occurs */
+  while (1)
+  {
+  }
+}
 
 /**
 * @brief This function handles System tick timer.
@@ -84,10 +96,8 @@ void USART1_IRQHandler(void)
     //USART_ClearITPendingBit(USART1, USART_IT_RXNE);
     __HAL_UART_CLEAR_FLAG(&huart1, UART_FLAG_RXNE);
     uint8_t data = (uint8_t)((&huart1)->Instance->DR & (uint16_t)0x00FF);
-    receive_byte_handler(data);
   }
   /* USER CODE END USART1_IRQn 0 */
-  //HAL_UART_IRQHandler(&huart1);
   
   /* USER CODE BEGIN USART1_IRQn 1 */
 
@@ -95,6 +105,26 @@ void USART1_IRQHandler(void)
 }
 
 /* USER CODE BEGIN 1 */
+/**
+* @brief This function handles EXTI line[9:5] interrupts.
+*/
+void EXTI9_5_IRQHandler(void)
+{
+  /* USER CODE BEGIN EXTI9_5_IRQn 0 */
 
+  /* USER CODE END EXTI9_5_IRQn 0 */
+  HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_7);
+  /* USER CODE BEGIN EXTI9_5_IRQn 1 */
+
+  /* USER CODE END EXTI9_5_IRQn 1 */
+}
+
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
+{
+  if (GPIO_Pin == GPIO_PIN_7)
+  {
+    power_pulse_notify();
+  }
+}
 /* USER CODE END 1 */
 /************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/

@@ -66,7 +66,7 @@ extern TypeEthState ethernet_state;
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_SPI1_Init(void);
-static void MX_USART1_UART_Init(void);
+//static void MX_USART1_UART_Init(void);
 
 void StartLedBlinkTask(void const * argument);
 void StartNetworkHandler(void const * argument);
@@ -101,7 +101,7 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_SPI1_Init();
-  MX_USART1_UART_Init();
+  //MX_USART1_UART_Init();
 
   /* USER CODE BEGIN 2 */
 #ifdef DEBUG
@@ -111,8 +111,11 @@ int main(void)
   generate_json_data1();
   w5500_reset();
   DWT_Init();
+  
   __HAL_SPI_ENABLE(&hspi1);
+  
   rtc_init();
+  power_counting_init();
   config_w5500_stack();
   init2_w5500();
   init_sntp_module();
@@ -223,34 +226,31 @@ void MX_SPI1_Init(void)
   hspi1.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLED;
   hspi1.Init.CRCPolynomial = 10;
   HAL_SPI_Init(&hspi1);
-
 }
 
-/* USART1 init function */
-static void MX_USART1_UART_Init(void)
-{
 
-  huart1.Instance = USART1;
-  huart1.Init.BaudRate = 1200;
-  huart1.Init.WordLength = UART_WORDLENGTH_8B;
-  huart1.Init.StopBits = UART_STOPBITS_1;
-  huart1.Init.Parity = UART_PARITY_NONE;
-  huart1.Init.Mode = UART_MODE_RX;
-  huart1.Init.HwFlowCtl = UART_HWCONTROL_NONE;
-  huart1.Init.OverSampling = UART_OVERSAMPLING_16;
-  
-  if (HAL_UART_Init(&huart1) != HAL_OK)
-  {
-    //Error_Handler();
-  }
-  else
-  {
-      __HAL_UART_ENABLE_IT(&huart1, UART_IT_RXNE);
-  }
-  
-  
-
-}
+///* USART1 init function */
+//static void MX_USART1_UART_Init(void)
+//{
+//
+//  huart1.Instance = USART1;
+//  huart1.Init.BaudRate = 1200;
+//  huart1.Init.WordLength = UART_WORDLENGTH_8B;
+//  huart1.Init.StopBits = UART_STOPBITS_1;
+//  huart1.Init.Parity = UART_PARITY_NONE;
+//  huart1.Init.Mode = UART_MODE_RX;
+//  huart1.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+//  huart1.Init.OverSampling = UART_OVERSAMPLING_16;
+//  
+//  if (HAL_UART_Init(&huart1) != HAL_OK)
+//  {
+//    //Error_Handler();
+//  }
+//  else
+//  {
+//      __HAL_UART_ENABLE_IT(&huart1, UART_IT_RXNE);
+//  }
+//}
 
 /** Configure pins as 
         * Analog 
@@ -285,7 +285,12 @@ void MX_GPIO_Init(void)
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Speed = GPIO_SPEED_LOW;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
-
+  
+  /*Configure GPIO pin : PB7 */
+  GPIO_InitStruct.Pin = GPIO_PIN_7;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
+  GPIO_InitStruct.Pull = GPIO_PULLDOWN;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 }
 
 /* USER CODE BEGIN 4 */
@@ -357,7 +362,7 @@ void StartPowerCountHandler(void const * argument)
 {
   for(;;)
   {
-    osDelay(500);
+    osDelay(100);
     power_counting_handler();
   }
 }

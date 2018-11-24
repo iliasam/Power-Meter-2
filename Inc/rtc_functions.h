@@ -43,6 +43,12 @@ void print_current_time(char* buffer);
 
 void update_reset_time(void);
 void rtc_time_from_reset_to_buffer(char* buffer);
+uint8_t rtc_is_time_good(void);
+RTCTM rtc_get_current_time(void);
+
+uint32_t rtc_read_backup_value(uint32_t register_number);
+void rtc_write_backup_value(uint32_t register_number, uint32_t value);
+
 
 
 #endif

@@ -16,9 +16,10 @@ const char http_404_full[] =
 	"<pre>Page not found\r\n\r\n";
 
 
-#define WEB_DATA_BUF_SIZE   2048
+#define WEB_DATA_BUF_SIZE       2048
 uint8_t web_data_buf[WEB_DATA_BUF_SIZE];
 #define SOCK_WEB_CNT            3//число сокетов //SOCKET_CODE
+#define SOCK_WEB_PORT           80//Порт web страницы
 
 
 const char  http_200[] = "HTTP/1.0 200 OK\r\n";
@@ -54,9 +55,9 @@ void web_server_handler(void)
   }
   else
   {
-    for (i=1;i<(1+SOCK_WEB_CNT);i++)//перебираем сокеты
+    for (i=1; i < (SOCK_WEB_CNT + 1); i++)//перебираем сокеты
     {
-      if(loopback_web_server(i, web_data_buf, 80) < 0) 
+      if(loopback_web_server(i, web_data_buf, SOCK_WEB_PORT) < 0) 
       {
 #ifdef DEBUG
 	printf("SOCKET ERROR\r\n");
@@ -80,19 +81,24 @@ const char *httpd_get_mime_type(char *url)
   {
     ext++;
     //strlwr(ext);
-    if(strcmp(ext, "htm")==0)       t_type = http_text_html;
-    else if(strcmp(ext, "html")==0) t_type = http_text_html;
-    else if(strcmp(ext, "js")==0)   t_type = http_text_js;
-    else if(strcmp(ext, "cgi")==0)  t_type = http_cgi;
+    if(strcmp(ext, "htm")==0)       
+      t_type = http_text_html;
+    else if(strcmp(ext, "html")==0) 
+      t_type = http_text_html;
+    else if(strcmp(ext, "js")==0)   
+      t_type = http_text_js;
+    else if(strcmp(ext, "cgi")==0)  
+      t_type = http_cgi;
   }
   
   return t_type;
 }
 
-void HTTP_reset(uint8_t sock_num)
+// Сброс состояния обработчика http для сокета "sock_num"
+void web_http_reset(uint8_t sock_num)
 {
-  sentsize[sock_num]=0;
-  http_state[sock_num]=HTTP_IDLE;
+  sentsize[sock_num] = 0;
+  http_state[sock_num] = HTTP_IDLE;
   memset(&http_url[sock_num][0], 0, 25);//clear url
 }
 
@@ -104,7 +110,7 @@ int32_t loopback_web_server(uint8_t sock_num, uint8_t* buf, uint16_t port)
 {
    int32_t ret;
    uint32_t size = 0;
-   char *url,*p,str[10];
+   char *url, *p, str[10];
    const char *mime;
    
    uint16_t header_sz = 0;
@@ -117,34 +123,39 @@ int32_t loopback_web_server(uint8_t sock_num, uint8_t* buf, uint16_t port)
     case SOCK_ESTABLISHED :
       if(getSn_IR(sock_num) & Sn_IR_CON)
       {
-        setSn_IR(sock_num,Sn_IR_CON);
+        setSn_IR(sock_num, Sn_IR_CON);
 #ifdef DEBUG
-        printf("%d:Connected\r\n",sock_num);
+        printf("%d:Connected\r\n", sock_num);
 #endif
       }
       if((size = getSn_RX_RSR(sock_num)) > 0)//Received Size Register - there are some bytes received
       {
-        if(size > WEB_DATA_BUF_SIZE) size = WEB_DATA_BUF_SIZE;
+        if(size > WEB_DATA_BUF_SIZE) 
+          size = WEB_DATA_BUF_SIZE;
+        
         ret = recv(sock_num, buf, size);
-        HTTP_reset(sock_num);
+        web_http_reset(sock_num);
+        
         if(ret <= 0)
           return ret;
       
-        url =(char*) buf + 4;// extract URL from request header
+        url = (char*)buf + 4;// extract URL from request header
 
-        if((http_state[sock_num]==HTTP_IDLE)&&(memcmp(buf, "GET ", 4)==0)&&((p = strchr(url, ' '))))// extract URL from request header
+        if((http_state[sock_num] == HTTP_IDLE) && 
+           (memcmp(buf, "GET ", 4) == 0) && 
+             ((p = strchr(url, ' '))))// extract URL from request header
         {
           *(p++) = 0;//making zeroed url string
           sentsize[sock_num]=0;
           
-          if(strcmp(url,"/")==0)
-              url=default_page;
+          if(strcmp(url,"/") == 0)
+              url = default_page;
           else
             url++;//иначе url будет содержать "/"
 
 #ifdef DEBUG
 	printf("URL : %s\r\n", url);
-#endif          
+#endif
           
           file_size = (uint32_t)url_exists(url);
  #ifdef DEBUG
@@ -155,7 +166,7 @@ int32_t loopback_web_server(uint8_t sock_num, uint8_t* buf, uint16_t port)
           {
             memcpy(&http_url[sock_num][0], url, 25);
             
-            mime=httpd_get_mime_type(url);
+            mime = httpd_get_mime_type(url);
             strcpy((char*)buf, http_200);
             
             //from here possibly not mandatory?
@@ -183,8 +194,9 @@ int32_t loopback_web_server(uint8_t sock_num, uint8_t* buf, uint16_t port)
           {
             //404 - should be less 2048
             strcpy((char*)buf, http_404_full);
-            size=strlen((char*)buf);
-            ret=send(sock_num, buf, size);
+            size = strlen((char*)buf);
+            ret = send(sock_num, buf, size);
+            
             if(ret < 0)
             {
               close(sock_num);
@@ -192,7 +204,7 @@ int32_t loopback_web_server(uint8_t sock_num, uint8_t* buf, uint16_t port)
             }
             
             //ending
-            HTTP_reset(sock_num);
+            web_http_reset(sock_num);
             disconnect(sock_num);
           }//end of file size
         }//end of http_state==HTTP_IDLE
@@ -227,7 +239,7 @@ int32_t loopback_web_server(uint8_t sock_num, uint8_t* buf, uint16_t port)
         if(sentsize[sock_num] >= file_size)
         {
           //ending
-          HTTP_reset(sock_num);
+          web_http_reset(sock_num);
           disconnect(sock_num);
         }
       }//end of HTTP_SENDING
@@ -235,26 +247,28 @@ int32_t loopback_web_server(uint8_t sock_num, uint8_t* buf, uint16_t port)
       break;
     
   case SOCK_CLOSE_WAIT :
-    HTTP_reset(sock_num);
+    web_http_reset(sock_num);
 #ifdef DEBUG
     printf("%d:CloseWait\r\n",sock_num);
 #endif
-    if((ret=disconnect(sock_num)) != SOCK_OK) return ret;
+    if((ret=disconnect(sock_num)) != SOCK_OK) 
+      return ret;
 #ifdef DEBUG
     printf("%d:Closed\r\n",sock_num);
 #endif
     break;
     
   case SOCK_INIT :
-    HTTP_reset(sock_num);
+    web_http_reset(sock_num);
 #ifdef DEBUG
     printf("%d:Listen, port [%d]\r\n",sock_num, port);
 #endif
-    if( (ret = listen(sock_num)) != SOCK_OK) return ret;
+    if( (ret = listen(sock_num)) != SOCK_OK) 
+      return ret;
     break;
     
   case SOCK_CLOSED:
-    HTTP_reset(sock_num);
+    web_http_reset(sock_num);
 #ifdef DEBUG    
     printf("%d:LBTStart\r\n",sock_num);
 #endif
@@ -266,8 +280,8 @@ int32_t loopback_web_server(uint8_t sock_num, uint8_t* buf, uint16_t port)
     break;
   default:
     {
-    HTTP_reset(sock_num);
-    break;
+      web_http_reset(sock_num);
+      break;
     }
   }
   return 1;
@@ -278,9 +292,12 @@ int32_t loopback_web_server(uint8_t sock_num, uint8_t* buf, uint16_t port)
 //проверяет наличие файла
 uint32_t url_exists(char* file_name)
 {
-  if(strcmp(file_name, "index.html")==0)    return sizeof(index_file);
-  if(strcmp(file_name, "zepto.min.js")==0)  return sizeof(zepto_min_js_gzip);
-  if(strcmp(file_name, "state.cgi")==0)     return generate_json_data1(); //generated file
+  if(strcmp(file_name, "index.html")==0)    
+    return sizeof(index_file);
+  if(strcmp(file_name, "zepto.min.js")==0)  
+    return sizeof(zepto_min_js_gzip);
+  if(strcmp(file_name, "state.cgi")==0)     
+    return generate_json_data1(); //generated file
   return 0;
 }
 
@@ -298,12 +315,12 @@ uint16_t f_read(
   uint32_t cur_file_size = 0;
   uint32_t bytes_remain = 0;
   
-  if(strcmp(fp, "index.html")==0) 
+  if(strcmp(fp, "index.html") == 0) 
   {
     file_pointer = (uint8_t*)index_file;
     cur_file_size = sizeof(index_file);
   }
-  else if(strcmp(fp, "zepto.min.js")==0) 
+  else if(strcmp(fp, "zepto.min.js") == 0) 
   {
     file_pointer = (uint8_t*)zepto_min_js_gzip;
     cur_file_size = sizeof(zepto_min_js_gzip);
@@ -314,18 +331,20 @@ uint16_t f_read(
     cur_file_size = json_data1_size;
   }
   
-  if (cur_file_size == 0) return 0;
-  if (offset > cur_file_size) return 0;
+  if (cur_file_size == 0) 
+    return 0;
+  if (offset > cur_file_size) 
+    return 0;
   
   bytes_remain = cur_file_size - offset;//число доступных для чтения байт
   if (bytes_remain >= bytes_to_read)
   {
-    memcpy(buff,&file_pointer[offset], bytes_to_read);
+    memcpy(buff, &file_pointer[offset], bytes_to_read);
     return bytes_to_read;//прочитали столько байт, сколько просили
   }
   else
   {
-    memcpy(buff,&file_pointer[offset], bytes_remain);
+    memcpy(buff, &file_pointer[offset], bytes_remain);
     return bytes_remain;//прочитали оставшиеся байты
   }
 }
