@@ -396,7 +396,8 @@ int32_t recv(uint8_t sn, uint8_t * buf, uint16_t len)
    CHECK_SOCKDATA();
    
    recvsize = getSn_RxMAX(sn);
-   if(recvsize < len) len = recvsize;
+   if(recvsize < len) 
+     len = recvsize;
       
 //A20150601 : For Integrating with W5300
 #if _WIZCHIP_ == 5300

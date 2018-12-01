@@ -1,12 +1,14 @@
 #include "web_server.h"
 #include "network_low.h"
 #include "generate_json.h"
+#include "power_counting.h"
 #include <stdio.h>
 #include "socket.h"
 #include <string.h>
 
 #include "index.h"
 #include "zepto_gzip.h"
+#include <stdlib.h>
 
 const char http_404_full[] =
 	"HTTP/1.0 404 Not Found\r\n"
@@ -31,9 +33,6 @@ const char http_content_encoding[] = "Content-Encoding: gzip\r\n";
 const char http_linebreak[] = "\r\n";
 const char http_header_end[] = "\r\n\r\n";
 
-
-//const char http_not_found[] = "<h1>404 - Not Found</h1>";
-
 const char http_text_html[] = "text/html";
 const char http_text_js[] = "text/javascript";
 const char http_cgi[] = "application/cgi";
@@ -45,6 +44,8 @@ uint8_t http_state[SOCK_WEB_CNT+1];
 uint8_t http_url[SOCK_WEB_CNT+1][25];
 
 extern TypeEthState ethernet_state;
+
+int decode_unicode(const char* s, char* dec);
 
 void web_server_handler(void)
 {
@@ -109,8 +110,8 @@ void web_http_reset(uint8_t sock_num)
 int32_t loopback_web_server(uint8_t sock_num, uint8_t* buf, uint16_t port)
 {
    int32_t ret;
-   uint32_t size = 0;
-   char *url, *p, str[10];
+   uint32_t rx_size = 0;
+   char *url, *p, str[32];
    const char *mime;
    
    uint16_t header_sz = 0;
@@ -128,86 +129,139 @@ int32_t loopback_web_server(uint8_t sock_num, uint8_t* buf, uint16_t port)
         printf("%d:Connected\r\n", sock_num);
 #endif
       }
-      if((size = getSn_RX_RSR(sock_num)) > 0)//Received Size Register - there are some bytes received
+      if((rx_size = getSn_RX_RSR(sock_num)) > 0)//Received Size Register - there are some bytes received
       {
-        if(size > WEB_DATA_BUF_SIZE) 
-          size = WEB_DATA_BUF_SIZE;
+        if(rx_size > WEB_DATA_BUF_SIZE) 
+          rx_size = WEB_DATA_BUF_SIZE;
         
-        ret = recv(sock_num, buf, size);
+        ret = recv(sock_num, buf, rx_size);
         web_http_reset(sock_num);
+        buf[rx_size] = 0;//terminate rx string
         
         if(ret <= 0)
           return ret;
-      
+        
         url = (char*)buf + 4;// extract URL from request header
-
-        if((http_state[sock_num] == HTTP_IDLE) && 
-           (memcmp(buf, "GET ", 4) == 0) && 
-             ((p = strchr(url, ' '))))// extract URL from request header
+        
+        if (http_state[sock_num] == HTTP_IDLE)
         {
-          *(p++) = 0;//making zeroed url string
-          sentsize[sock_num]=0;
-          
-          if(strcmp(url,"/") == 0)
+          // **************** GET ********************************************
+          if ((memcmp(buf, "GET ", 4) == 0) && (p = strchr(url, ' ')))
+          {
+            *(p++) = 0;//making zeroed url string
+            sentsize[sock_num]=0;
+            
+            if(strcmp(url,"/") == 0)
               url = default_page;
-          else
-            url++;//иначе url будет содержать "/"
-
+            else
+              url++;//иначе url будет содержать "/"
+            
 #ifdef DEBUG
-	printf("URL : %s\r\n", url);
+            printf("URL : %s\r\n", url);
 #endif
-          
-          file_size = (uint32_t)url_exists(url);
- #ifdef DEBUG
-	printf("FILE SIZE : %d\r\n", file_size);
+            
+            file_size = (uint32_t)url_exists(url);
+#ifdef DEBUG
+            printf("FILE SIZE : %d\r\n", file_size);
 #endif           
-          //http data fill
-          if(file_size > 0)
-          {
-            memcpy(&http_url[sock_num][0], url, 25);
-            
-            mime = httpd_get_mime_type(url);
-            strcpy((char*)buf, http_200);
-            
-            //from here possibly not mandatory?
-            strcat((char*)buf, http_server);
-            strcat((char*)buf, http_connection_close);
-            
-            strcat((char*)buf, http_content_length);
-            sprintf(str, "%d\r\n", file_size);
-            strcat((char*)buf, str);
-            //strcat((char*)buf, http_linebreak);//till here possibly not mandatory?
-            
-            if (memcmp(mime, "text/javascript", 15) == 0)
+            //http data fill
+            if(file_size > 0)
             {
-              strcat((char*)buf, http_content_encoding);//use encoding
+              memcpy(&http_url[sock_num][0], url, 25);
+              
+              mime = httpd_get_mime_type(url);
+              strcpy((char*)buf, http_200);
+              
+              //from here possibly not mandatory?
+              strcat((char*)buf, http_server);
+              strcat((char*)buf, http_connection_close);
+              
+              strcat((char*)buf, http_content_length);
+              sprintf(str, "%d\r\n", file_size);
+              strcat((char*)buf, str);
+              //strcat((char*)buf, http_linebreak);//till here possibly not mandatory?
+              
+              if (memcmp(mime, "text/javascript", 15) == 0)
+              {
+                strcat((char*)buf, http_content_encoding);//use encoding
+              }
+              strcat((char*)buf, http_content_type);
+              strcat((char*)buf, mime);
+              strcat((char*)buf, http_header_end);
+              
+              header_sz = strlen((char*)buf);
+              
+              http_state[sock_num] = HTTP_SENDING;
             }
-            strcat((char*)buf, http_content_type);
-            strcat((char*)buf, mime);
-            strcat((char*)buf, http_header_end);
-
-            header_sz = strlen((char*)buf);
+            else
+            {
+              //404 - should be less 2048
+              strcpy((char*)buf, http_404_full);
+              rx_size = strlen((char*)buf);
+              ret = send(sock_num, buf, rx_size);
+              
+              if(ret < 0)
+              {
+                close(sock_num);
+                return ret;
+              }
+              
+              //ending
+              web_http_reset(sock_num);
+              disconnect(sock_num);
+            }//end of file size
             
-            http_state[sock_num] = HTTP_SENDING;
           }
-          else
+          // **************** POST ********************************************
+          else if ((memcmp(buf, "POST ", 4) == 0) && (p = strchr(url, ' ')))
           {
-            //404 - should be less 2048
-            strcpy((char*)buf, http_404_full);
-            size = strlen((char*)buf);
-            ret = send(sock_num, buf, size);
+            char* payload_start = strstr((const char*)buf, "\r\n\r\n");
+            if (payload_start == NULL)
+              return -1;
+            else
+              payload_start+= 4;
             
-            if(ret < 0)
+            char* cmd_start = strstr(payload_start, "command=");
+            if (cmd_start == NULL)
+              return -1;
+            else
+              cmd_start+= 8;
+            
+            if (strcmp(cmd_start, "reset_day_cnt") == 0)
             {
-              close(sock_num);
-              return ret;
+              power_reset_day_count();
+            }
+            else if (strcmp(cmd_start, "reset_month_cnt") == 0)
+            {
+              power_reset_month_count();
+            }
+            else if (memcmp(cmd_start, "total", 5) == 0)
+            {
+              //char* data_pos = cmd_start + 6;
+              memset(str, 0, sizeof(str));
+              decode_unicode(cmd_start, str);
+              for (uint8_t i = 0; i < sizeof(str); i++)
+              {
+                if (str[i] == ',')
+                  str[i] = '.';
+              }
+              
+              char* data_start = strchr(str, '=');
+              if (data_start == NULL)
+                return -1;
+              else
+                data_start+= 1;
+              
+              float tmp_energy = atof(data_start);
+              if (tmp_energy < 0.0f)
+                return -1;
+              power_set_total_count(tmp_energy);
             }
             
-            //ending
             web_http_reset(sock_num);
             disconnect(sock_num);
-          }//end of file size
-        }//end of http_state==HTTP_IDLE
+          }
+        }
       }//end of getSn_RX_RSR
       
       if(http_state[sock_num] == HTTP_SENDING)
@@ -347,4 +401,34 @@ uint16_t f_read(
     memcpy(buff, &file_pointer[offset], bytes_remain);
     return bytes_remain;//прочитали оставшиеся байты
   }
+}
+
+
+inline int ishex(int x)
+{
+  return  (x >= '0' && x <= '9')	||
+          (x >= 'a' && x <= 'f')	||
+          (x >= 'A' && x <= 'F');
+}
+
+//take unicode string and fill "dec" string
+int decode_unicode(const char* s, char* dec)
+{
+  char *o;
+  const char *end = s + strlen(s);
+  int c;
+  
+  for (o = dec; s <= end; o++) 
+  {
+    c = *s++;
+    if (c == '+') c = ' ';
+    else if (c == '%' && (!ishex(*s++)	||
+                          !ishex(*s++)	||
+                            !sscanf(s - 2, "%2x", &c)))
+      return -1;
+    
+    if (dec) *o = c;
+  }
+  
+  return o - dec;
 }

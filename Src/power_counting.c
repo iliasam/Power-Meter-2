@@ -141,6 +141,7 @@ uint32_t power_get_day_count(void)
 {
   uint32_t result = rtc_read_backup_value(POWER_RTC_TOTAL_COUNTER_REG) - 
                     rtc_read_backup_value(POWER_RTC_DAY_STAMP_REG);
+  
   return result;
 }
 
@@ -150,6 +151,20 @@ uint32_t power_get_month_count(void)
   uint32_t result = rtc_read_backup_value(POWER_RTC_TOTAL_COUNTER_REG) - 
                     rtc_read_backup_value(POWER_RTC_MONTH_STAMP_REG);
   return result;
+}
+
+// Сбрасывает счетчик энергии за день
+void power_reset_day_count(void)
+{
+  uint32_t current_total_count = power_read_total_count();
+  rtc_write_backup_value(POWER_RTC_DAY_STAMP_REG, current_total_count);
+}
+
+// Сбрасывает счетчик энергии за месяц
+void power_reset_month_count(void)
+{
+  uint32_t current_total_count = power_read_total_count();
+  rtc_write_backup_value(POWER_RTC_MONTH_STAMP_REG, current_total_count);
 }
 
 // Увеличиваем значение главного счетчика импульсов
