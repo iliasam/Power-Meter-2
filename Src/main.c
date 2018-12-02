@@ -50,6 +50,7 @@
 /* Private variables ---------------------------------------------------------*/
 SPI_HandleTypeDef hspi1;
 UART_HandleTypeDef huart1;
+IWDG_HandleTypeDef hiwdg;
 
 osThreadId LedBlinkTaskHandle;
 osThreadId NetworkHandlerHandle;
@@ -66,6 +67,7 @@ extern TypeEthState ethernet_state;
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_SPI1_Init(void);
+static void MX_IWDG_Init(void);
 //static void MX_USART1_UART_Init(void);
 
 void StartLedBlinkTask(void const * argument);
@@ -101,6 +103,7 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_SPI1_Init();
+  MX_IWDG_Init();
   //MX_USART1_UART_Init();
 
   /* USER CODE BEGIN 2 */
@@ -148,7 +151,7 @@ int main(void)
   PowerCountTaskHandle = osThreadCreate(osThread(PowerCountHandler), NULL);
 
   /* USER CODE BEGIN RTOS_THREADS */
-  osThreadDef(WebServerTask, StartWebServerHandler, osPriorityLow, 0, 128);
+  osThreadDef(WebServerTask, StartWebServerHandler, osPriorityLow, 0, 256);
   WebServerTaskHandle = osThreadCreate(osThread(WebServerTask), NULL);
   
   osThreadDef(RTCUpdateTask, StartRTCUpdateHandler, osPriorityLow, 0, 128);
@@ -269,6 +272,20 @@ void MX_GPIO_Init(void)
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 }
 
+/* IWDG init function */
+static void MX_IWDG_Init(void)
+{
+
+  hiwdg.Instance = IWDG;
+  hiwdg.Init.Prescaler = IWDG_PRESCALER_16;
+  hiwdg.Init.Reload = 4095;
+  if (HAL_IWDG_Init(&hiwdg) != HAL_OK)
+  {
+  }
+  HAL_IWDG_Start(&hiwdg);
+
+}
+
 /* USER CODE BEGIN 4 */
 
 /* USER CODE END 4 */
@@ -340,6 +357,7 @@ void StartPowerCountHandler(void const * argument)
   {
     osDelay(100);
     power_counting_handler();
+    HAL_IWDG_Refresh(&hiwdg);
   }
 }
 

@@ -23,44 +23,57 @@ extern float power_day_energy;
 extern float power_month_energy;
 
 
+
+
 uint16_t generate_json_data1(void)
 {
-  char str[64];
+  char tmp_str[64];
   memset(json_buffer1, 0, sizeof(json_buffer1));//clear json
   json_data1_size = 0;
   
   strcat((char*)json_buffer1, "{\r\n");//start
   
-  print_current_time((char*)str);
-  add_str_value_to_json(json_buffer1, "dev_time", str, 0);
+  print_current_time((char*)tmp_str);
+  add_str_value_to_json(json_buffer1, "dev_time", tmp_str, 0);
 
-  sprintf(str, "\"cur_power\": %d,\r\n", power_last_value);
-  strcat((char*)json_buffer1,str);
+  memset(tmp_str, 0, sizeof(tmp_str));//clean
+  sprintf(tmp_str, "\"cur_power\": %d,\r\n", power_last_value);
+  strcat((char*)json_buffer1,tmp_str);
   
-  sprintf(str, "\"total_energy\": %.3f,\r\n", power_total_energy);
-  strcat((char*)json_buffer1,str);
+  memset(tmp_str, 0, sizeof(tmp_str));//clean
+  sprintf(tmp_str, "\"total_energy\": %.3f,\r\n", power_total_energy);
+  strcat((char*)json_buffer1,tmp_str);
   
-  sprintf(str, "\"day_energy\": %.3f,\r\n", power_day_energy);
-  strcat((char*)json_buffer1,str);
+  memset(tmp_str, 0, sizeof(tmp_str));//clean
+  sprintf(tmp_str, "\"day_energy\": %.3f,\r\n", power_day_energy);
+  strcat((char*)json_buffer1,tmp_str);
   
-  sprintf(str, "\"month_energy\": %.3f,\r\n", power_month_energy);
-  strcat((char*)json_buffer1,str);
+  memset(tmp_str, 0, sizeof(tmp_str));//clean
+  sprintf(tmp_str, "\"month_energy\": %.3f,\r\n", power_month_energy);
+  strcat((char*)json_buffer1,tmp_str);
   
-  sprintf(str, "\"last_rx_time\": %d,\r\n", power_delta_time);
-  strcat((char*)json_buffer1,str);
+  memset(tmp_str, 0, sizeof(tmp_str));//clean
+  sprintf(tmp_str, "\"last_rx_time\": %d,\r\n", power_delta_time);
+  strcat((char*)json_buffer1,tmp_str);
   
   //%%%%
   
-  rtc_time_from_reset_to_buffer((char*)str);
-  add_str_value_to_json(json_buffer1, "time_from_reset", str, 0);
+  memset(tmp_str, 0, sizeof(tmp_str));//clean
+  rtc_time_from_reset_to_buffer((char*)tmp_str);
+  add_str_value_to_json(json_buffer1, "time_from_reset", tmp_str, 0);
   
-  add_str_value_to_json(json_buffer1, "total_time", "10d 2h", 0);
+  memset(tmp_str, 0, sizeof(tmp_str));//clean
+  rtc_total_time_to_buffer((char*)tmp_str);
+  add_str_value_to_json(json_buffer1, "total_time", tmp_str, 0);
+  //add_str_value_to_json(json_buffer1, "total_time", "10d 2h", 0);
   
-  sprintf(str, "\"temperature\": %d,\r\n", (uint8_t)dht11_temperature);
-  strcat((char*)json_buffer1,str);
+  memset(tmp_str, 0, sizeof(tmp_str));//clean
+  sprintf(tmp_str, "\"temperature\": %d,\r\n", (uint8_t)dht11_temperature);
+  strcat((char*)json_buffer1,tmp_str);
   
-  sprintf(str, "\"humidity\": %d\r\n", (uint8_t)dht11_humidity);
-  strcat((char*)json_buffer1,str);
+  memset(tmp_str, 0, sizeof(tmp_str));//clean
+  sprintf(tmp_str, "\"humidity\": %d\r\n", (uint8_t)dht11_humidity);
+  strcat((char*)json_buffer1,tmp_str);
   
   strcat((char*)json_buffer1, "}");//end
   

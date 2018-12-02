@@ -21,13 +21,13 @@
                                                 (POWER_COUNTER_COEF * (x)))
 
 // Регистр для хранения общего счета импульсов с электросчетчика
-#define POWER_RTC_TOTAL_COUNTER_REG             RTC_BKP_DR2
+#define POWER_RTC_TOTAL_COUNTER_REG             RTC_BKP_DR4 //4+5
 
 // Регистр для хранения значения энергии в полночь
-#define POWER_RTC_DAY_STAMP_REG                 RTC_BKP_DR3
+#define POWER_RTC_DAY_STAMP_REG                 RTC_BKP_DR6 //6+7
 
 // Регистр для хранения значения энергии в момент смены месяца
-#define POWER_RTC_MONTH_STAMP_REG               RTC_BKP_DR4
+#define POWER_RTC_MONTH_STAMP_REG               RTC_BKP_DR8 //8+9
 
 // Последняя полученная мощность, Ватт
 uint16_t power_last_value = 0;
@@ -109,13 +109,13 @@ void power_update_midnight_counters(void)
     // Получаем текущее значение главного счетчика
     uint32_t current_total_count = power_read_total_count();
     // Обновляем значение регистра-защелки
-    rtc_write_backup_value(POWER_RTC_DAY_STAMP_REG, current_total_count);
+    rtc_write_32_bit_backup_value(POWER_RTC_DAY_STAMP_REG, current_total_count);
     
     // Наступил новый месяц
-    if ((curr_time.tm_mday == 1) && (power_previous_time.tm_mday != 1))
+    if (((curr_time.tm_mday + 1) == 1) && ((power_previous_time.tm_mday + 1) != 1))
     {
       // Обновляем значение регистра-защелки
-      rtc_write_backup_value(POWER_RTC_MONTH_STAMP_REG, current_total_count);
+      rtc_write_32_bit_backup_value(POWER_RTC_MONTH_STAMP_REG, current_total_count);
     }
   }
   
@@ -127,20 +127,21 @@ void power_update_midnight_counters(void)
 void power_set_total_count(float enegy_value)
 {
   uint32_t new_total_count = (uint32_t)(enegy_value * (float)POWER_COUNTER_COEF);
-  rtc_write_backup_value(POWER_RTC_TOTAL_COUNTER_REG, new_total_count);
+  rtc_write_32_bit_backup_value(POWER_RTC_TOTAL_COUNTER_REG, new_total_count);
+  power_total_energy = power_read_total_count() / (float)POWER_COUNTER_COEF;
 }
 
 // Считывает значение главного счетчика импульсов из backup ram
 uint32_t power_read_total_count(void)
 {
-  return rtc_read_backup_value(POWER_RTC_TOTAL_COUNTER_REG);
+  return rtc_read_32_bit_backup_value(POWER_RTC_TOTAL_COUNTER_REG);
 }
 
 // Определяет общее значение энергии за день
 uint32_t power_get_day_count(void)
 {
-  uint32_t result = rtc_read_backup_value(POWER_RTC_TOTAL_COUNTER_REG) - 
-                    rtc_read_backup_value(POWER_RTC_DAY_STAMP_REG);
+  uint32_t result = rtc_read_32_bit_backup_value(POWER_RTC_TOTAL_COUNTER_REG) - 
+                    rtc_read_32_bit_backup_value(POWER_RTC_DAY_STAMP_REG);
   
   return result;
 }
@@ -148,8 +149,8 @@ uint32_t power_get_day_count(void)
 // Определяет общее значение энергии за месяц
 uint32_t power_get_month_count(void)
 {
-  uint32_t result = rtc_read_backup_value(POWER_RTC_TOTAL_COUNTER_REG) - 
-                    rtc_read_backup_value(POWER_RTC_MONTH_STAMP_REG);
+  uint32_t result = rtc_read_32_bit_backup_value(POWER_RTC_TOTAL_COUNTER_REG) - 
+                    rtc_read_32_bit_backup_value(POWER_RTC_MONTH_STAMP_REG);
   return result;
 }
 
@@ -157,14 +158,16 @@ uint32_t power_get_month_count(void)
 void power_reset_day_count(void)
 {
   uint32_t current_total_count = power_read_total_count();
-  rtc_write_backup_value(POWER_RTC_DAY_STAMP_REG, current_total_count);
+  rtc_write_32_bit_backup_value(POWER_RTC_DAY_STAMP_REG, current_total_count);
+  power_day_energy = power_get_day_count() / (float)POWER_COUNTER_COEF;
 }
 
 // Сбрасывает счетчик энергии за месяц
 void power_reset_month_count(void)
 {
   uint32_t current_total_count = power_read_total_count();
-  rtc_write_backup_value(POWER_RTC_MONTH_STAMP_REG, current_total_count);
+  rtc_write_32_bit_backup_value(POWER_RTC_MONTH_STAMP_REG, current_total_count);
+  power_month_energy = power_get_month_count() / (float)POWER_COUNTER_COEF;
 }
 
 // Увеличиваем значение главного счетчика импульсов
@@ -172,7 +175,7 @@ void power_increment_total_backup_counter(void)
 {
   uint32_t total_count = power_read_total_count();
   total_count++;
-  rtc_write_backup_value(POWER_RTC_TOTAL_COUNTER_REG, total_count);
+  rtc_write_32_bit_backup_value(POWER_RTC_TOTAL_COUNTER_REG, total_count);
 }
 
 //Вызывается из обработчика прерывания, когда приходит импульс от счетчика

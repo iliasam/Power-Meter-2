@@ -14,6 +14,9 @@
 #define RTC_STATUS_REG                  RTC_BKP_DR1  // Регистр для хранения статуса RTC
 #define RTC_STATUS_INIT_DONE            0x1234       /* RTC initialised value*/
 
+// Регистр для хранения значения общего числа минут
+#define POWER_RTC_MINUTE_CNT_REG        RTC_BKP_DR2 //2+3
+
 #define SNTP_SOCKET 			4 //SOCKET_CODE
 #define SNTP_DATA_BUF_SIZE   		256
 
@@ -35,6 +38,7 @@ uint32_t last_sync_time = 0;// Время последней синхронизации - UTC
 extern TypeEthState ethernet_state;
 
 
+void rtc_update_total_time_counter(void);
 
 //******************************************************************************
 
@@ -84,7 +88,28 @@ void rtc_update_handler(void)
 #endif
       }
     }//end of internet part
+  }
+  
+  rtc_update_total_time_counter();
+}
 
+//Счетчик общего времени рботы усройства
+void rtc_update_total_time_counter(void)
+{
+  static uint8_t prev_minute = 0;//Каждый раз при включении будет добавлятся лишняя минута
+  if (rtc_is_time_good())
+  {
+    uint32_t cur_rtc_time = RTC_GetCounter() + 3600 * RTC_TIMEZONE;
+    RTCTM cur_time;//текущее время - структура
+    Rtc_RawLocalTime(&cur_time, cur_rtc_time);
+    
+    if (prev_minute != cur_time.tm_min)//минута сменилась
+    {
+      uint32_t total_minutes = rtc_read_32_bit_backup_value(POWER_RTC_MINUTE_CNT_REG);
+      total_minutes++;
+      rtc_write_32_bit_backup_value(POWER_RTC_MINUTE_CNT_REG, total_minutes);
+      prev_minute = cur_time.tm_min;
+    }
   }
 }
 
@@ -108,7 +133,7 @@ void rtc_init(void)
     rtc_status = NO_TIME_SET;
 
   // Получить статус RTC - читаем первый регистр BKUP_RAM
-  status = HAL_RTCEx_BKUPRead(&rtc_handle, RTC_STATUS_REG);
+  status = rtc_read_16_bit_backup_value(RTC_STATUS_REG);
   
   RTC_SetCounter(1000);//reset RTC
   
@@ -119,7 +144,7 @@ void rtc_init(void)
   else 
   {
     //Записываем магическое число в BKUP
-    HAL_RTCEx_BKUPWrite(&rtc_handle, RTC_STATUS_REG, RTC_STATUS_INIT_DONE);//первое включение
+    rtc_write_16_bit_backup_value(RTC_STATUS_REG, RTC_STATUS_INIT_DONE);//первое включение
   }
 }
 
@@ -154,13 +179,10 @@ void rtc_init_hardware_clk(void)
   __HAL_RCC_RTC_ENABLE();// Enable RTC Clock
 }
 
-// Read uint32_t value from backup data
-uint32_t rtc_read_backup_value(uint32_t register_number)
+// Read uint16_t value from backup data
+uint16_t rtc_read_16_bit_backup_value(uint32_t register_number)
 {
   if (register_number >= RTC_BKP_NUMBER)
-    return 0; //error
-  
-  if (register_number == RTC_BKP_DR1)
     return 0; //error
   
   RTC_HandleTypeDef rtc_handle;
@@ -168,19 +190,44 @@ uint32_t rtc_read_backup_value(uint32_t register_number)
   return HAL_RTCEx_BKUPRead(&rtc_handle, register_number);
 }
 
-//Write uint32_t "value" to "register_number"
-void rtc_write_backup_value(uint32_t register_number, uint32_t value)
+// Read uint32_t value from backup data
+uint32_t rtc_read_32_bit_backup_value(uint32_t register_number)
 {
   if (register_number >= RTC_BKP_NUMBER)
-    return; //error
-  
-  if (register_number == RTC_BKP_DR1)
-    return; //error
+    return 0; //error
   
   RTC_HandleTypeDef rtc_handle;
   rtc_handle.Instance = RTC;
   
+  uint16_t low_value = HAL_RTCEx_BKUPRead(&rtc_handle, register_number);
+  uint16_t high_value = HAL_RTCEx_BKUPRead(&rtc_handle, (register_number + 1));
+  
+  return ((uint32_t)high_value << 16) + (uint32_t)low_value;
+}
+
+//Write uint16_t "value" to "register_number"
+void rtc_write_16_bit_backup_value(uint32_t register_number, uint16_t value)
+{
+  if (register_number >= RTC_BKP_NUMBER)
+    return; //error
+
+  RTC_HandleTypeDef rtc_handle;
+  rtc_handle.Instance = RTC;
+  
   HAL_RTCEx_BKUPWrite(&rtc_handle, register_number, value);
+}
+
+//Write uint32_t "value" to "register_number"
+void rtc_write_32_bit_backup_value(uint32_t register_number, uint32_t value)
+{
+  if (register_number >= RTC_BKP_NUMBER)
+    return; //error
+
+  RTC_HandleTypeDef rtc_handle;
+  rtc_handle.Instance = RTC;
+  
+  HAL_RTCEx_BKUPWrite(&rtc_handle, register_number, (uint16_t)(value & 0xFFFF));
+  HAL_RTCEx_BKUPWrite(&rtc_handle, (register_number + 1), (uint16_t)(value >> 16));
 }
 
 // RTC time is probaly good
@@ -299,7 +346,7 @@ void print_current_time(char* buffer)
   RTCTM cur_time;//текущее время - структура
   Rtc_RawLocalTime(&cur_time,current_time);
   sprintf(buffer,"%02u/%02u/%04u %02u:%02u:%02u",
-          cur_time.tm_mday,
+          (cur_time.tm_mday + 1),
           (cur_time.tm_mon + 1), 
           (cur_time.tm_year + 1830),
           cur_time.tm_hour,
@@ -352,9 +399,22 @@ void rtc_time_from_reset_to_buffer(char* buffer)
   reset_delta_time = reset_delta_time / 3600;//to hours
   
   uint16_t days_from_reset = (uint16_t)(reset_delta_time / 24);
-  uint8_t hours_from_rest = (uint8_t)(reset_delta_time % 24);
+  uint8_t hours_from_reset = (uint8_t)(reset_delta_time % 24);
   
-  sprintf(buffer,"%d days %d hr",  days_from_reset, hours_from_rest);
+  sprintf(buffer,"%d days %d hr",  days_from_reset, hours_from_reset);
+}
+
+//Выводит в буфер buffer число дней и часов с последний перезагрузки
+void rtc_total_time_to_buffer(char* buffer)
+{
+  uint32_t total_minutes = rtc_read_32_bit_backup_value(POWER_RTC_MINUTE_CNT_REG);
+
+  uint32_t total_hours = total_minutes / 60;//to hours
+  
+  uint16_t total_days = (uint16_t)(total_hours / 24);
+  uint8_t total_day_hours = (uint8_t)(total_hours % 24);
+  
+  sprintf(buffer,"%d days %d hr",  total_days, total_day_hours);
 }
 
 
