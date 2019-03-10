@@ -25,7 +25,7 @@ if not "%~1" == "" goto debugFile
 
 @echo on 
 
-"C:\Program Files (x86)\IAR Systems\Embedded Workbench 7.3\common\bin\cspybat" -f "D:\MYPROGS\POWER_METER2\Firmware\PROG4_HAL\Project1\EWARM\settings\Project1.Project1 Configuration.general.xcl" --backend -f "D:\MYPROGS\POWER_METER2\Firmware\PROG4_HAL\Project1\EWARM\settings\Project1.Project1 Configuration.driver.xcl" 
+"C:\Program Files (x86)\IAR Systems\Embedded Workbench 7.3\common\bin\cspybat" -f "D:\MYPROGS\POWER_METER2\Firmware\PROG4_HAL\Project1\Firmware\EWARM\settings\Project1.Project1 Configuration.general.xcl" --backend -f "D:\MYPROGS\POWER_METER2\Firmware\PROG4_HAL\Project1\Firmware\EWARM\settings\Project1.Project1 Configuration.driver.xcl" 
 
 @echo off 
 goto end 
@@ -34,7 +34,7 @@ goto end
 
 @echo on 
 
-"C:\Program Files (x86)\IAR Systems\Embedded Workbench 7.3\common\bin\cspybat" -f "D:\MYPROGS\POWER_METER2\Firmware\PROG4_HAL\Project1\EWARM\settings\Project1.Project1 Configuration.general.xcl" "--debug_file=%~1" --backend -f "D:\MYPROGS\POWER_METER2\Firmware\PROG4_HAL\Project1\EWARM\settings\Project1.Project1 Configuration.driver.xcl" 
+"C:\Program Files (x86)\IAR Systems\Embedded Workbench 7.3\common\bin\cspybat" -f "D:\MYPROGS\POWER_METER2\Firmware\PROG4_HAL\Project1\Firmware\EWARM\settings\Project1.Project1 Configuration.general.xcl" "--debug_file=%~1" --backend -f "D:\MYPROGS\POWER_METER2\Firmware\PROG4_HAL\Project1\Firmware\EWARM\settings\Project1.Project1 Configuration.driver.xcl" 
 
 @echo off 
 :end

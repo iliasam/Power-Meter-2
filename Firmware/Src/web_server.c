@@ -360,7 +360,7 @@ uint32_t url_exists(char* file_name)
 //читает "файл" из flash
 uint16_t f_read(
                char *fp, 		/* Pointer to the file object */
-               uint8_t *buff,		/* Pointer to data buffer */
+               uint8_t *buff,		/* Pointer to data buffer - destination*/
                uint16_t bytes_to_read,	/* Number of bytes to read */
                uint32_t offset		/* Pointer to number of bytes read */
                  )
