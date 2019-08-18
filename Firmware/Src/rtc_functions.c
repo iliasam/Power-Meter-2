@@ -23,6 +23,9 @@
 //Hours
 #define RTC_TIMEZONE                    (3)
 
+// NTP starts at 1900 and UNI starts at 1970
+#define NTP_TO_UNIX_OFFSET              (2208988800)
+
 static const uint8_t rtc_days_in_month_info[12] = {31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
 
 uint8_t sntp_server_ip[4] = {211, 233, 84, 186}; // kr.pool.ntp.org
@@ -72,8 +75,15 @@ void rtc_update_handler(void)
       if (SNTP_run(&sntp_time))
       {
         update_reset_time();
-        RTC_SetCounter((uint32_t)sntp_time.raw_value);//в RTC записывается время UTC
-        last_sync_time = (uint32_t)sntp_time.raw_value;//refresh sync time
+        
+        uint32_t unix_time = 0;
+        if ((uint32_t)sntp_time.raw_value <  NTP_TO_UNIX_OFFSET)
+          unix_time = 0;
+        else
+          unix_time = (uint32_t)sntp_time.raw_value - NTP_TO_UNIX_OFFSET;
+        
+        RTC_SetCounter(unix_time);//UTC time is written to RTC
+        last_sync_time = unix_time;//refresh sync time
         rtc_status = RTC_OK;
         
 #ifdef DEBUG
@@ -346,9 +356,9 @@ void print_current_time(char* buffer)
   RTCTM cur_time;//текущее время - структура
   Rtc_RawLocalTime(&cur_time,current_time);
   sprintf(buffer,"%02u/%02u/%04u %02u:%02u:%02u",
-          (cur_time.tm_mday + 1),
+          (cur_time.tm_mday),
           (cur_time.tm_mon + 1), 
-          (cur_time.tm_year + 1830),
+          (cur_time.tm_year + 1900),
           cur_time.tm_hour,
           cur_time.tm_min, 
           cur_time.tm_sec);

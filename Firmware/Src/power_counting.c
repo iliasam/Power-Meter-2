@@ -35,14 +35,17 @@ uint16_t power_last_value = 0;
 // Время с последнего получения импульса, с
 uint16_t power_delta_time = 0;
 
-//Общее количество энергии, квт/час
+//Общее количество энергии, квт*час
 float power_total_energy = 0.0f;
 
-//Количество энергии за день, квт/час
+//Количество энергии за день, квт*час
 float power_day_energy = 0.0f;
 
-//Количество энергии за месяц, квт/час
+//Количество энергии за месяц, квт*час
 float power_month_energy = 0.0f;
+
+//Количество энергии за предыдущий месяц, квт*час
+float power_prev_month_energy = 0.0f;
 
 // Очередь, содержащая время в ms (timestamp), когда приходили импульсы со счетчика
 QueueHandle_t power_pulses_queue;
@@ -112,8 +115,9 @@ void power_update_midnight_counters(void)
     rtc_write_32_bit_backup_value(POWER_RTC_DAY_STAMP_REG, current_total_count);
     
     // Наступил новый месяц
-    if (((curr_time.tm_mday + 1) == 1) && ((power_previous_time.tm_mday + 1) != 1))
+    if ((curr_time.tm_mday == 1) && (power_previous_time.tm_mday != 1))
     {
+      power_prev_month_energy = power_month_energy;
       // Обновляем значение регистра-защелки
       rtc_write_32_bit_backup_value(POWER_RTC_MONTH_STAMP_REG, current_total_count);
     }

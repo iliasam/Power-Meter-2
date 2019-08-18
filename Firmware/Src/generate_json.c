@@ -16,10 +16,12 @@ extern uint16_t power_delta_time;
 
 extern float power_total_energy;
 
-//Количество энергии за день, квт/час
+// Количество энергии за день, квт*час
 extern float power_day_energy;
 
-//Количество энергии за месяц, квт/час
+// Количество энергии за предыдущий месяц, квт*час
+extern float power_prev_month_energy;
+
 extern float power_month_energy;
 
 
@@ -50,6 +52,10 @@ uint16_t generate_json_data1(void)
   
   memset(tmp_str, 0, sizeof(tmp_str));//clean
   sprintf(tmp_str, "\"month_energy\": %.3f,\r\n", power_month_energy);
+  strcat((char*)json_buffer1,tmp_str);
+  
+  memset(tmp_str, 0, sizeof(tmp_str));//clean
+  sprintf(tmp_str, "\"prev_month_energy\": %.3f,\r\n", power_prev_month_energy);
   strcat((char*)json_buffer1,tmp_str);
   
   memset(tmp_str, 0, sizeof(tmp_str));//clean
