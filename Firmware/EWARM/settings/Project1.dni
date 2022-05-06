@@ -13,7 +13,7 @@ WatchCond=_ 0
 Watch0=_ 0 "" 0 "" 0 "" 0 "" 0 0 0 0
 Watch1=_ 0 "" 0 "" 0 "" 0 "" 0 0 0 0
 [DebugChecksum]
-Checksum=-1552884394
+Checksum=-2012400282
 [Exceptions]
 StopOnUncaught=_ 0
 StopOnThrow=_ 0
@@ -47,7 +47,11 @@ Enabled=_ 0
 [struct_types]
 Fmt0=datetime-mm	3	0
 [array_types]
-Fmt0=uint8_t[5]	3	0
+Fmt0=uint8_t[256]	3	0
+Fmt1=uint8_t[4]	3	0
+Fmt2=uint8_t[5]	3	0
+[watch_formats]
+Fmt0={W}42:sntp_server_ip	4	2
 [Trace2]
 Enabled=0
 ShowSource=0

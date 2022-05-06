@@ -53,6 +53,6 @@ uint32_t rtc_read_32_bit_backup_value(uint32_t register_number);
 void rtc_write_16_bit_backup_value(uint32_t register_number, uint16_t value);
 void rtc_write_32_bit_backup_value(uint32_t register_number, uint32_t value);
 
-
+void rtc_change_sntp_ip(uint8_t* ip_source);
 
 #endif

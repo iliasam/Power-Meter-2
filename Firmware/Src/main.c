@@ -37,6 +37,7 @@
 //configuration - stm32f1xx_hal_conf.h
 
 /* USER CODE BEGIN Includes */
+//STM32F103C8T6 - 64 kb flash, 20 kb ram
 #include "network_low.h"
 #include "web_server.h"
 #include "power_counting.h"
@@ -314,6 +315,7 @@ void StartNetworkHandler(void const * argument)
     DHCP_routine();
     if (ethernet_state == ETH_STATE_GOT_IP)
     {
+      network_dns_handling();
       osDelay(1000);
     }
     else

@@ -36,9 +36,11 @@
 #include "stm32f1xx_it.h"
 #include "cmsis_os.h"
 
+
 /* USER CODE BEGIN 0 */
 #include "Internet/DHCP/dhcp.h"
 #include "power_counting.h"
+#include "dns.h"
 /* USER CODE END 0 */
 
 /* External variables --------------------------------------------------------*/
@@ -72,7 +74,11 @@ void SysTick_Handler(void)
   HAL_IncTick();
   osSystickHandler();
   /* USER CODE BEGIN SysTick_IRQn 1 */
-  if(HAL_GetTick() % 1000 == 0)	DHCP_time_handler();
+  if(HAL_GetTick() % 1000 == 0)	
+  {
+    DHCP_time_handler();
+    DNS_time_handler();
+  }
   /* USER CODE END SysTick_IRQn 1 */
 }
 

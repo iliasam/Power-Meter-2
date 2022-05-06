@@ -521,24 +521,25 @@ int8_t DNS_run(uint8_t * dns_ip, uint8_t * name, uint8_t * ip_from_dns)
 	{
 		if ((len = getSn_RX_RSR(DNS_SOCKET)) > 0)
 		{
-			if (len > MAX_DNS_BUF_SIZE) len = MAX_DNS_BUF_SIZE;
-			len = recvfrom(DNS_SOCKET, pDNSMSG, len, ip, &port);
-      #ifdef _DNS_DEBUG_
-	      printf("> Receive DNS message from %d.%d.%d.%d(%d). len = %d\r\n", ip[0], ip[1], ip[2], ip[3],port,len);
-      #endif
-         ret = parseDNSMSG(&dhp, pDNSMSG, ip_from_dns);
-			break;
+                  if (len > MAX_DNS_BUF_SIZE) len = MAX_DNS_BUF_SIZE;
+                    len = recvfrom(DNS_SOCKET, pDNSMSG, len, ip, &port);
+#ifdef _DNS_DEBUG_
+                  printf("> Receive DNS message from %d.%d.%d.%d(%d). len = %d\r\n", ip[0], ip[1], ip[2], ip[3],port,len);
+#endif
+                  ret = parseDNSMSG(&dhp, pDNSMSG, ip_from_dns);
+                  break;
 		}
 		// Check Timeout
 		ret_check_timeout = check_DNS_timeout();
-		if (ret_check_timeout < 0) {
-
+		if (ret_check_timeout < 0) 
+                {
 #ifdef _DNS_DEBUG_
-			printf("> DNS Server is not responding : %d.%d.%d.%d\r\n", dns_ip[0], dns_ip[1], dns_ip[2], dns_ip[3]);
+                  printf("> DNS Server is not responding : %d.%d.%d.%d\r\n", dns_ip[0], dns_ip[1], dns_ip[2], dns_ip[3]);
 #endif
-			return 0; // timeout occurred
+                  return 0; // timeout occurred
 		}
-		else if (ret_check_timeout == 0) {
+		else if (ret_check_timeout == 0) 
+                {
 
 #ifdef _DNS_DEBUG_
 			printf("> DNS Timeout\r\n");
@@ -556,7 +557,7 @@ int8_t DNS_run(uint8_t * dns_ip, uint8_t * name, uint8_t * ip_from_dns)
 /* DNS TIMER HANDLER */
 void DNS_time_handler(void)
 {
-	dns_1s_tick++;
+  dns_1s_tick++;
 }
 
 

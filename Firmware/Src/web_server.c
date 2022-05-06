@@ -20,7 +20,7 @@ const char http_404_full[] =
 
 #define WEB_DATA_BUF_SIZE       2048
 uint8_t web_data_buf[WEB_DATA_BUF_SIZE];
-#define SOCK_WEB_CNT            3//число сокетов //SOCKET_CODE
+
 #define SOCK_WEB_PORT           80//Порт web страницы
 
 

@@ -2,9 +2,19 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "stm32f1xx_hal_spi.h"
+#include "dns.h"
+#include "rtc_functions.h"
+#include "config.h"
 
-#define DATA_BUF_SIZE   2048
+#define DATA_BUF_SIZE                   2048
+#define DNS_DATA_BUF_SIZE   		256
+
 uint8_t gDATABUF[DATA_BUF_SIZE];
+uint8_t dns_data_buf[DNS_DATA_BUF_SIZE];
+
+uint8_t network_need_sntp_dns_update = 1;
+
+uint8_t domain_ip[4]  = {0, };  
 
 #include "socket.h"
 #include "Internet/DHCP/dhcp.h"
@@ -39,7 +49,7 @@ wiz_NetInfo gWIZNETINFO = { .mac = {0x00, 0x08, 0xdc,0x00, 0xab, 0xcd},
                             .ip = {192, 168, 1, 180},
                             .sn = {255,255,255,0},
                             .gw = {192, 168, 1, 1},
-                            .dns = {0,0,0,0},
+                            .dns = {8,8,4,4},
                             .dhcp = NETINFO_DHCP};
 
 void config_w5500_stack(void)
@@ -63,10 +73,32 @@ uint8_t init2_w5500(void)
   reg_dhcp_cbfunc(my_ip_assign, my_ip_assign, my_ip_conflict);//callbacks
   DHCP_init(SOCKET_DHCP, gDATABUF);
   
+  DNS_init(DNS_SOCKET, dns_data_buf);
   return 0;
 }
 
-//called buy dhcp
+//used for sntp
+void network_dns_handling(void)
+{
+  if (network_need_sntp_dns_update)
+  {
+                 		// Translated IP address by DNS Server
+    int8_t ret = DNS_run(gWIZNETINFO.dns, SNTP_DOMAIN_NAME, domain_ip);
+    if (ret > 0)
+    {
+      network_need_sntp_dns_update = 0;
+      rtc_change_sntp_ip(domain_ip);
+    }
+  }
+}
+
+//Called if SNTP is not working
+void network_start_dns_update(void)
+{
+  network_need_sntp_dns_update = 1;
+}
+
+//called by dhcp
 void network_init(void)
 {
   // Set Network information from netinfo structure
@@ -74,6 +106,7 @@ void network_init(void)
 #ifdef DEBUG
   printf("SIP: %d.%d.%d.%d\r\n", gWIZNETINFO.ip[0],gWIZNETINFO.ip[1],gWIZNETINFO.ip[2],gWIZNETINFO.ip[3]);
   printf("DHCP LEASED TIME : %ld Sec.\r\n", getDHCPLeasetime());
+  printf("DNS IP: %d.%d.%d.%d\r\n", gWIZNETINFO.dns[0],gWIZNETINFO.dns[1],gWIZNETINFO.dns[2],gWIZNETINFO.dns[3]);
 #endif
 }
 

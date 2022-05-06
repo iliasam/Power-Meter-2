@@ -1,11 +1,11 @@
 #ifndef __NETWORK_LOW_H
 #define __NETWORK_LOW_H
 #include "stm32f1xx_hal.h"
+#include "config.h"
 
 /***************************************
  * SOCKET NUMBER DEFINION
  ***************************************/
-#define SOCKET_DHCP			0
 
 typedef enum
 {
@@ -13,8 +13,6 @@ typedef enum
   ETH_STATE_NO_IP,
   ETH_STATE_GOT_IP
 } TypeEthState;
-
-
 
 #define SCS_PIN  GPIO_PIN_4 //w5500 cs pin
 #define SCS_PORT GPIOA
@@ -40,6 +38,8 @@ void network_init(void);
 void my_ip_assign(void);
 void my_ip_conflict(void);
 void DHCP_routine(void);
+void network_dns_handling(void);
+void network_start_dns_update(void);
 
 
 

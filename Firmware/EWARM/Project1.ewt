@@ -1059,6 +1059,9 @@
     <group>
       <name>User</name>
       <file>
+        <name>$PROJ_DIR$\..\Inc\config.h</name>
+      </file>
+      <file>
         <name>$PROJ_DIR$\..\Src\dht11.c</name>
       </file>
       <file>
@@ -1184,6 +1187,12 @@
     </file>
     <file>
       <name>$PROJ_DIR$\..\Internet\DHCP\dhcp.h</name>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\..\Internet\DNS\dns.c</name>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\..\Internet\DNS\dns.h</name>
     </file>
     <file>
       <name>$PROJ_DIR$\..\Internet\SNTP\sntp.c</name>

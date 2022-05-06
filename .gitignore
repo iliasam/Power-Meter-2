@@ -52,9 +52,10 @@ Mkfile.old
 dkms.conf
 
 *.cout
-*.s
 *.pbi
 /Debug
 HAL_source/stm32F429_project/EWARM/cube_video_test1/Obj/cube_video_test1.pbd.browse
 HAL_source/stm32F429_project/EWARM/cube_video_test1/Exe/
 HAL_source/stm32F429_project/EWARM/cube_video_test1/Obj/
+Firmware/EWARM/Project1 Configuration/Exe/
+Firmware/EWARM/Project1 Configuration/Obj/

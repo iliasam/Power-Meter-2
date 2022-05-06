@@ -8,8 +8,8 @@
 #include "sntp.h"
 #include "stm32f1xx_hal.h"
 #include "stm32f1xx_hal_rcc_ex.h"
+#include "config.h"
 
-#define RTC_SYNC_PERIOD                 (uint32_t)(1*60) // Период синхронизации RTC, сек
 
 #define RTC_STATUS_REG                  RTC_BKP_DR1  // Регистр для хранения статуса RTC
 #define RTC_STATUS_INIT_DONE            0x1234       /* RTC initialised value*/
@@ -17,18 +17,16 @@
 // Регистр для хранения значения общего числа минут
 #define POWER_RTC_MINUTE_CNT_REG        RTC_BKP_DR2 //2+3
 
-#define SNTP_SOCKET 			4 //SOCKET_CODE
 #define SNTP_DATA_BUF_SIZE   		256
 
-//Hours
-#define RTC_TIMEZONE                    (3)
 
 // NTP starts at 1900 and UNI starts at 1970
 #define NTP_TO_UNIX_OFFSET              (2208988800)
 
 static const uint8_t rtc_days_in_month_info[12] = {31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
 
-uint8_t sntp_server_ip[4] = {211, 233, 84, 186}; // kr.pool.ntp.org
+//uint8_t sntp_server_ip[4] = {211, 233, 84, 186}; // kr.pool.ntp.org
+uint8_t sntp_server_ip[4] = {80, 249, 145, 122};
 datetime sntp_time;//Время, полученое от SNTP
 
 uint8_t sntp_data_buf[SNTP_DATA_BUF_SIZE];//Буфер для хранения промежуточных данных SNTP
@@ -40,8 +38,12 @@ uint32_t last_sync_time = 0;// Время последней синхронизации - UTC
 
 extern TypeEthState ethernet_state;
 
+uint8_t rtc_sntp_allowed = 0;
+uint8_t rtc_sntp_fail_counter = 0;
+
 
 void rtc_update_total_time_counter(void);
+void rtc_sntp_handling(void);
 
 //******************************************************************************
 
@@ -50,6 +52,8 @@ void init_sntp_module(void)
   //socket, ip adsress, time zone, buffer
   SNTP_init(SNTP_SOCKET, sntp_server_ip, 29, sntp_data_buf);
 }
+
+
 
 // Периодически вызывается из задачи StartRTCUpdateHandler()
 void rtc_update_handler(void)
@@ -70,37 +74,52 @@ void rtc_update_handler(void)
         //Настало время синхронизации и RTC работает нормально
         rtc_status = TIME_NO_SYNC;
       }
-      
-      // Пытаемся получить время от SNTP
-      if (SNTP_run(&sntp_time))
-      {
-        update_reset_time();
-        
-        uint32_t unix_time = 0;
-        if ((uint32_t)sntp_time.raw_value <  NTP_TO_UNIX_OFFSET)
-          unix_time = 0;
-        else
-          unix_time = (uint32_t)sntp_time.raw_value - NTP_TO_UNIX_OFFSET;
-        
-        RTC_SetCounter(unix_time);//UTC time is written to RTC
-        last_sync_time = unix_time;//refresh sync time
-        rtc_status = RTC_OK;
-        
-#ifdef DEBUG
-        printf("SNTP: %d-%d-%d, %d:%d:%d\r\n", sntp_time.yy, sntp_time.mo, sntp_time.dd, sntp_time.hh, sntp_time.mm, sntp_time.ss);
-#endif
-        update_reset_time();
-      }
-      else
-      {
-#ifdef DEBUG
-        printf("SNTP fail!\r\n");
-#endif
-      }
+      rtc_sntp_handling();
     }//end of internet part
   }
   
   rtc_update_total_time_counter();
+}
+
+void rtc_sntp_handling(void)
+{
+  if (rtc_sntp_allowed == 0)
+    return;
+  
+  // Пытаемся получить время от SNTP
+  if (SNTP_run(&sntp_time))
+  {
+    rtc_sntp_fail_counter = 0;
+    update_reset_time();
+    
+    uint32_t unix_time = 0;
+    if ((uint32_t)sntp_time.raw_value <  NTP_TO_UNIX_OFFSET)
+      unix_time = 0;
+    else
+      unix_time = (uint32_t)sntp_time.raw_value - NTP_TO_UNIX_OFFSET;
+    
+    RTC_SetCounter(unix_time);//UTC time is written to RTC
+    last_sync_time = unix_time;//refresh sync time
+    rtc_status = RTC_OK;
+    
+#ifdef DEBUG
+    printf("SNTP: %d-%d-%d, %d:%d:%d\r\n", sntp_time.yy, sntp_time.mo, sntp_time.dd, sntp_time.hh, sntp_time.mm, sntp_time.ss);
+#endif
+    update_reset_time();
+  }
+  else
+  {
+#ifdef DEBUG
+    printf("SNTP fail!\r\n");
+    rtc_sntp_fail_counter++;
+    if (rtc_sntp_fail_counter > 5)
+    {
+      rtc_sntp_allowed = 0;//stop working with SNTP, update IP using DNS
+      network_start_dns_update();
+    }
+#endif
+  }
+  
 }
 
 //Счетчик общего времени рботы усройства
@@ -425,6 +444,15 @@ void rtc_total_time_to_buffer(char* buffer)
   uint8_t total_day_hours = (uint8_t)(total_hours % 24);
   
   sprintf(buffer,"%d days %d hr",  total_days, total_day_hours);
+}
+
+void rtc_change_sntp_ip(uint8_t* ip_source)
+{
+  sntp_server_ip[0] = ip_source[0];
+  sntp_server_ip[1] = ip_source[1];
+  sntp_server_ip[2] = ip_source[2];
+  sntp_server_ip[3] = ip_source[3];
+  rtc_sntp_allowed = 1;
 }
 
 
