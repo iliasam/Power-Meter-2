@@ -82,7 +82,7 @@ void network_dns_handling(void)
 {
   if (network_need_sntp_dns_update)
   {
-                 		// Translated IP address by DNS Server
+    // Translated IP address by DNS Server
     int8_t ret = DNS_run(gWIZNETINFO.dns, SNTP_DOMAIN_NAME, domain_ip);
     if (ret > 0)
     {

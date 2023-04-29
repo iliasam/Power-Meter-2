@@ -256,12 +256,15 @@ int8_t SNTP_run(datetime *time)
   uint16_t destport;
   uint16_t startindex = 40; //last 8-byte of data_buf[size is 48 byte] is xmt, so the startindex should be 40
   
-  switch(getSn_SR(NTP_SOCKET))
+  uint8_t tmp_res = 0;
+  tmp_res = getSn_SR(NTP_SOCKET);
+  switch(tmp_res)
   {
   case SOCK_UDP:
     if ((RSR_len = getSn_RX_RSR(NTP_SOCKET)) > 0)
     {
-      if (RSR_len > MAX_SNTP_BUF_SIZE) RSR_len = MAX_SNTP_BUF_SIZE;	// if Rx data size is lager than TX_RX_MAX_BUF_SIZE
+      if (RSR_len > MAX_SNTP_BUF_SIZE) 
+        RSR_len = MAX_SNTP_BUF_SIZE;	// if Rx data size is lager than TX_RX_MAX_BUF_SIZE
       recvfrom(NTP_SOCKET, data_buf, RSR_len, (uint8_t *)&destip, &destport);
       
       get_seconds_from_ntp_server(data_buf,startindex);
@@ -290,7 +293,7 @@ int8_t SNTP_run(datetime *time)
       {
         if((ntp_retry_cnt % 10) == 0) //wait time
         {
-          sendto(NTP_SOCKET,ntpmessage,sizeof(ntpmessage),NTPformat.dstaddr,ntp_port);
+          sendto(NTP_SOCKET,ntpmessage, sizeof(ntpmessage), NTPformat.dstaddr, ntp_port);
 #ifdef DEBUG
           printf("ntp retry: %d\r\n", ntp_retry_cnt);
 #endif

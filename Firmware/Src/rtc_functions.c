@@ -19,6 +19,9 @@
 
 #define SNTP_DATA_BUF_SIZE   		256
 
+//Only if SNTP get failed
+#define SNTP_UPDATE_PERIOD_MS           1000
+
 
 // NTP starts at 1900 and UNI starts at 1970
 #define NTP_TO_UNIX_OFFSET              (2208988800)
@@ -35,6 +38,8 @@ uint32_t reset_time = 0;//time of reset ????
 
 RTC_State_Type rtc_status = NO_INIT;
 uint32_t last_sync_time = 0;// Время последней синхронизации - UTC
+
+uint32_t sntp_last_request_timestamp = 0;
 
 extern TypeEthState ethernet_state;
 
@@ -86,7 +91,11 @@ void rtc_sntp_handling(void)
   if (rtc_sntp_allowed == 0)
     return;
   
+  if ((HAL_GetTick() - sntp_last_request_timestamp) < SNTP_UPDATE_PERIOD_MS)
+    return;
+  
   // Пытаемся получить время от SNTP
+  sntp_last_request_timestamp = HAL_GetTick();
   if (SNTP_run(&sntp_time))
   {
     rtc_sntp_fail_counter = 0;
@@ -111,13 +120,14 @@ void rtc_sntp_handling(void)
   {
 #ifdef DEBUG
     printf("SNTP fail!\r\n");
+#endif
     rtc_sntp_fail_counter++;
-    if (rtc_sntp_fail_counter > 5)
+    if (rtc_sntp_fail_counter > 100)
     {
+      rtc_sntp_fail_counter = 0;
       rtc_sntp_allowed = 0;//stop working with SNTP, update IP using DNS
       network_start_dns_update();
     }
-#endif
   }
   
 }
@@ -452,6 +462,7 @@ void rtc_change_sntp_ip(uint8_t* ip_source)
   sntp_server_ip[1] = ip_source[1];
   sntp_server_ip[2] = ip_source[2];
   sntp_server_ip[3] = ip_source[3];
+  init_sntp_module();//reinit SNTP
   rtc_sntp_allowed = 1;
 }
 

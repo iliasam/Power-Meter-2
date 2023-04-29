@@ -122,7 +122,7 @@ int main(void)
   power_counting_init();
   config_w5500_stack();
   init2_w5500();
-  init_sntp_module();
+  //init_sntp_module();
   
   /* USER CODE END 2 */
 

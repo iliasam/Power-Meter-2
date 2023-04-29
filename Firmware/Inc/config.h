@@ -6,9 +6,10 @@
 
 //Web server sockets - 1,2,3
 #define SOCK_WEB_CNT                    3//SOCKET_CODE - Count, not code!
+
 #define SNTP_SOCKET 			4 //SOCKET_CODE
 
-#define DNS_SOCKET 			5 //SOCKET_CODE //DNS is using same socket
+#define DNS_SOCKET 			5 //SOCKET_CODE
 
 #define RTC_SYNC_PERIOD                 (uint32_t)(1*60) // Период синхронизации RTC, сек
 
