@@ -13,11 +13,14 @@
 
 #define POWER_CONV_COEF                         (uint32_t)(3600*1e6)
 
+//Expected pulse length, ms
+#define POWER_PULSE_LENGTH_MS                   (80)
+
 // Коэффициент пересета счетчика - написан на нем
 #define POWER_COUNTER_COEF                      (uint32_t)(3200)
 
 // Пересчет периода импульсов в мс в Ватты
-#define POWER_CONVERT_PEIOD_MS_TO_WATT(x)       (uint32_t)(POWER_CONV_COEF / \
+#define POWER_CONVERT_PERIOD_MS_TO_WATT(x)       (uint32_t)(POWER_CONV_COEF / \
                                                 (POWER_COUNTER_COEF * (x)))
 
 // Регистр для хранения общего счета импульсов с электросчетчика
@@ -30,10 +33,10 @@
 #define POWER_RTC_MONTH_STAMP_REG               RTC_BKP_DR8 //8+9
 
 // Последняя полученная мощность, Ватт
-uint16_t power_last_value = 0;
+uint16_t power_last_value_watt = 0;
 
 // Время с последнего получения импульса, с
-uint16_t power_delta_time = 0;
+uint16_t power_delta_time_s = 0;
 
 //Общее количество энергии, квт*час
 float power_total_energy = 0.0f;
@@ -50,8 +53,6 @@ float power_prev_month_energy = 0.0f;
 // Очередь, содержащая время в ms (timestamp), когда приходили импульсы со счетчика
 QueueHandle_t power_pulses_queue;
 
-//Таймстемп ранее принятого импульса, мс
-uint32_t power_prev_pulse_timestamp = 0;
 
 // Время предыдущей проверки midnight счетчиков
 RTCTM power_previous_time;
@@ -69,7 +70,7 @@ void power_counting_init(void)
   memset(&power_previous_time, 0, sizeof(power_previous_time));
   power_pulses_queue = xQueueCreate(POWER_PULSES_QUEUE_SIZE, sizeof(uint32_t));
   
-  //Включаем прерыания от линии электросчетчика
+  //Включаем прерывания от линии электросчетчика
   HAL_NVIC_SetPriority(EXTI9_5_IRQn, 5, 0);
   HAL_NVIC_EnableIRQ(EXTI9_5_IRQn);
 }
@@ -77,16 +78,30 @@ void power_counting_init(void)
 // Обработчик, вызываемый из задачи StartPowerCountHandler
 void power_counting_handler(void)
 {
-  power_delta_time = (HAL_GetTick() - power_prev_pulse_timestamp) / POWER_MS_IN_SECOND;
+  //Таймстемп ранее принятого импульса, мс
+  static uint32_t power_prev_pulse_timestamp_ms = 0;
+
+  power_delta_time_s = (HAL_GetTick() - power_prev_pulse_timestamp_ms) / POWER_MS_IN_SECOND;
   
   if(uxQueueMessagesWaiting(power_pulses_queue) > 0)
   {
-    uint32_t timestamp = 0;
-    xQueueReceive(power_pulses_queue, &timestamp, 0);
+    uint32_t timestamp_ms = 0;
+    xQueueReceive(power_pulses_queue, &timestamp_ms, 0);
     
-    uint32_t pulses_period = timestamp - power_prev_pulse_timestamp;
+    uint32_t pulse_period_ms = timestamp_ms - power_prev_pulse_timestamp_ms;
+    if (pulse_period_ms < 1)
+    {
+      //this pulse is too short
+      power_prev_pulse_timestamp_ms = timestamp_ms;
+      return;
+    }
     
-    power_last_value = POWER_CONVERT_PEIOD_MS_TO_WATT(pulses_period);
+    power_last_value_watt = POWER_CONVERT_PERIOD_MS_TO_WATT(pulse_period_ms);
+    
+    if (power_last_value_watt > 5000)
+    {
+      asm("nop");
+    }
     
     power_total_energy = power_read_total_count() / (float)POWER_COUNTER_COEF;
     
@@ -97,7 +112,7 @@ void power_counting_handler(void)
     power_day_energy = power_get_day_count() / (float)POWER_COUNTER_COEF;
     power_month_energy = power_get_month_count() / (float)POWER_COUNTER_COEF;
     
-    power_prev_pulse_timestamp = timestamp;
+    power_prev_pulse_timestamp_ms = timestamp_ms;
   }
 }
 
@@ -185,9 +200,21 @@ void power_increment_total_backup_counter(void)
 //Вызывается из обработчика прерывания, когда приходит импульс от счетчика
 void power_pulse_notify(void)
 {
-  BaseType_t xHigherPriorityTaskWoken;
+  //Таймстемп ранее принятого импульса, мс
+  static uint32_t power_prev_pulse_timestamp2_ms = 0;
   
-  uint32_t timestamp = HAL_GetTick();
-  xQueueSendFromISR(power_pulses_queue, (void*)&timestamp, &xHigherPriorityTaskWoken);
+  uint32_t timestamp_ms = HAL_GetTick();
+  uint32_t pulse_period_ms = timestamp_ms - power_prev_pulse_timestamp2_ms;
+  //Protection for short pulses
+  if (pulse_period_ms < POWER_PULSE_LENGTH_MS)
+  {
+    return;
+  }
+  
+  power_prev_pulse_timestamp2_ms = timestamp_ms;
+  
+  
+  BaseType_t xHigherPriorityTaskWoken;
+  xQueueSendFromISR(power_pulses_queue, (void*)&timestamp_ms, &xHigherPriorityTaskWoken);
   power_increment_total_backup_counter();
 }

@@ -11,8 +11,8 @@ uint16_t json_data1_size = 0;
 extern uint8_t dht11_temperature;
 extern uint8_t dht11_humidity;
 
-extern uint16_t power_last_value;
-extern uint16_t power_delta_time;
+extern uint16_t power_last_value_watt;
+extern uint16_t power_delta_time_s;
 
 extern float power_total_energy;
 
@@ -39,7 +39,7 @@ uint16_t generate_json_data1(void)
   add_str_value_to_json(json_buffer1, "dev_time", tmp_str, 0);
 
   memset(tmp_str, 0, sizeof(tmp_str));//clean
-  sprintf(tmp_str, "\"cur_power\": %d,\r\n", power_last_value);
+  sprintf(tmp_str, "\"cur_power\": %d,\r\n", power_last_value_watt);
   strcat((char*)json_buffer1,tmp_str);
   
   memset(tmp_str, 0, sizeof(tmp_str));//clean
@@ -59,7 +59,7 @@ uint16_t generate_json_data1(void)
   strcat((char*)json_buffer1,tmp_str);
   
   memset(tmp_str, 0, sizeof(tmp_str));//clean
-  sprintf(tmp_str, "\"last_rx_time\": %d,\r\n", power_delta_time);
+  sprintf(tmp_str, "\"last_rx_time\": %d,\r\n", power_delta_time_s);
   strcat((char*)json_buffer1,tmp_str);
   
   //%%%%
